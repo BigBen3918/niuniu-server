@@ -1,0 +1,36 @@
+{
+    "name": "niuniu-server",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "server": "nodemon ./server.js",
+        "test": "mocha"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "bcrypt": "^5.0.1",
+        "body-parser": "^1.19.1",
+        "chai": "^4.3.6",
+        "chai-http": "^4.3.0",
+        "child_process": "^1.0.2",
+        "cors": "^2.8.5",
+        "dotenv": "^10.0.0",
+        "ethers": "^5.5.2",
+        "express": "^4.17.2",
+        "firebase": "^9.6.8",
+        "http": "0.0.1-security",
+        "jsonwebtoken": "^8.5.1",
+        "jwt-decode": "^3.1.2",
+        "mocha": "^9.2.0",
+        "mongoose": "^6.3.5",
+        "mysql2": "^2.3.3",
+        "nodemon": "^2.0.15",
+        "passport": "^0.5.2",
+        "passport-jwt": "^4.0.0",
+        "sha256": "^0.2.0",
+        "socket.io": "^4.4.1",
+        "uuid": "^8.3.2"
+    }
+}
