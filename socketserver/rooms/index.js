@@ -8,7 +8,7 @@ const { delay } = require("../../utils");
 class Room {
     constructor(
         creator,
-        cost = "0.5",
+        cost,
         setting = "test",
         name = "GBRoom",
         maxPlayer = 6
@@ -19,9 +19,9 @@ class Room {
         this.setting = setting;
         this.name = name ? name : "GBRoom";
         this.maxPlayer = maxPlayer && maxPlayer <= 6 ? maxPlayer : 6;
-        this.players = [];      // all players in room
-        this.readyPlayer = 0;       // ready players of room's players
-        this.gamingPlayer = 0;      // gaming players
+        this.players = []; // all players in room
+        this.readyPlayer = 0; // ready players of room's players
+        this.gamingPlayer = 0; // gaming players
         this.gameStatus = 0; // 0 is initial, 1 is ready, 2 is gaming, 3 is end
     }
     enterRoom(user) {
@@ -191,6 +191,14 @@ const roomManager = (socket, io) => {
 
 const gameManager = (socket, io) => {
     // functions
+    const getRoomIndex = async () => {
+        let roomId = global.users[socket.id].roomId;
+        if (!roomId) return;
+        let roomIndex = global.rooms.findIndex((room) => room.id == roomId);
+        if (roomIndex == -1) return;
+
+        return roomIndex;
+    };
     const randomCard = async (len) => {
         var arr = [];
         for (let i = 0; i < len * 5; ) {
@@ -220,8 +228,13 @@ const gameManager = (socket, io) => {
     socket.on("get ready", async () => {
         try {
             let room = await getCRoom();
+            let roomNumber = await getRoomIndex();
 
             room.readyPlayer += 1;
+            socket.emit("room status", {
+                roomNumber: roomNumber,
+                cost: room.cost,
+            });
             if (
                 room.readyPlayer === room.players.length &&
                 room.players.length > 1
@@ -230,14 +243,6 @@ const gameManager = (socket, io) => {
             }
         } catch (err) {
             console.log("get ready ======> ", err.message);
-        }
-    });
-    socket.on("room status", async () => {
-        try {
-            let room = await getCRoom();
-            //send current status to user
-        } catch (err) {
-            console.log("room status ======> ", err.message);
         }
     });
     socket.on("ready on", async () => {
