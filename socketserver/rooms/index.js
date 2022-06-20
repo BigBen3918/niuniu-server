@@ -94,7 +94,7 @@ class Room {
         this.players[userIndex].isReady = true;
         //if game is not started
         if (this.gameStatus == 0) {
-            startRound();
+            this.startRound();
         }
     }
     leaveRoom(userSocket) {
@@ -103,6 +103,7 @@ class Room {
         if (playerIndex != -1) {
             this.players.splice(playerIndex, 1);
         }
+        this.nextRoll();
     }
 
     // game roll
@@ -112,38 +113,41 @@ class Room {
         if (playerIndex != this.roller) throw new Error("invalid roll");
         let player = this.players[playerIndex];
         player.grab = multiple;
-
-        this.roller++;
         this.broadcastToPlayers("grabBank", {
             player: getUserData(player.socket.id),
             multiple: multiple,
-            roller: this.roller,
         });
-        if (this.roller == this.players.length) {
-            //end grab
-            endGrab();
-        }
+        nextRoll();
     }
     double(userSocket, multiple) {
         if (this.gameStatus != 2) throw new Error("invalid roll");
         let playerIndex = this.getPlayerIndex(userSocket);
         if (playerIndex != this.roller) throw new Error("invalid roll");
         let player = this.players[playerIndex];
-        player.double = double;
-
-        this.roller++;
-        //if next roller is banker, skip step
-        if (this.players[this.roller].roll == "banker") this.roller++;
-
+        player.doubles = double;
         this.broadcastToPlayers("double", {
             player: getUserData(player.socket.id),
             multiple: multiple,
-            roller: this.roller,
         });
-        //if roll is ended, round end
-        if (this.roller == this.players.length) {
-            //end double
-            endRound();
+        nextRoll();
+    }
+    nextRoll() {
+        if (this.gameStatus == 1) {
+            this.roller++;
+            if (this.roller == this.getReadyPlayers().length) {
+                //end grab
+                this.endGrab();
+            }
+        } else if (this.gameStatus == 2) {
+            this.roller++;
+            //if next roller is banker, skip step
+            if (this.players[this.roller].roll == "banker") this.roller++;
+
+            //if roll is ended, round end
+            if (this.roller == this.getReadyPlayers().length) {
+                //end double
+                this.endRound();
+            }
         }
     }
 
@@ -214,6 +218,7 @@ class Room {
             player.socket.emit(event, data);
         });
     }
+
     // get status
     getPlayerIndex(userSocket) {
         return this.players.findIndex(
@@ -229,33 +234,35 @@ class Room {
     getReadyPlayers() {
         return this.players.filter((player) => player.isReady);
     }
+    getOnPlayers() {
+        return this.players.filter((player) => player.onRound);
+    }
     getBanker() {
         return this.players.find((player) => player.roll == "banker");
     }
     getIdlers() {
         return this.players.filter((player) => player.roll == "idler");
     }
-
     getRoomStatus(userSocket) {
         return {
-            id: room.id,
-            creator: getUserData(room.creator.id),
-            cost: room.cost,
-            setting: room.setting,
-            name: room.name,
-            maxPlayer: room.maxPlayer,
-            players: room.players.map((player) =>
+            id: this.id,
+            creator: getUserData(this.creator.id),
+            cost: this.cost,
+            setting: this.setting,
+            name: this.name,
+            maxPlayer: this.maxPlayer,
+            players: this.players.map((player) =>
                 getUserData(player.socket.id)
             ),
             gameStatus: this.gameStatus,
             roller: this.roller,
-            playerStatus: room.players.map((player) => {
-                if (gameStatus == 5) {
+            playerStatus: this.players.map((player) => {
+                if (this.gameStatus == 5) {
                     return {
                         player: getUserData(player.socket.id),
                         roll: player.role,
                         grab: player.grab,
-                        double: player.double,
+                        doubles: player.double,
                         cards: player.cards,
                         score: player.roundScore,
                     };
@@ -268,7 +275,7 @@ class Room {
                         player: getUserData(player.socket.id),
                         roll: player.role,
                         grab: player.grab,
-                        double: player.double,
+                        doubles: player.double,
                         cards: cards,
                         score: player.roundScore,
                     };
@@ -276,6 +283,7 @@ class Room {
             }),
         };
     }
+
     // destructor
     destroy() {
         if (this.gameInterval) clearInterval(this.gameInterval);
@@ -327,9 +335,7 @@ const roomManager = (socket, io) => {
             room.destroy();
             global.rooms.splice(roomIndex, 1);
         }
-
         socket.emit("outed room");
-        room.checkPrepare();
     };
     const validEnterRoom = () => {
         if (!global.users[socket.id]) throw new Error("auth error");
@@ -350,7 +356,9 @@ const roomManager = (socket, io) => {
                 setting: room.setting,
                 name: room.name,
                 maxPlayer: room.maxPlayer,
-                players: room.players.map((player) => getUserData(player.id)),
+                players: room.players.map((player) =>
+                    getUserData(player.socket.id)
+                ),
             };
         });
         io.sockets.emit("rooms", { rooms: roomInfos });
@@ -430,10 +438,10 @@ const gameManager = (socket, io) => {
     });
     socket.on("room status", () => {
         try {
+            // send current status to user
             let room = getCRoom();
             let status = room.getRoomStatus(socket);
             socket.emit("room status", status);
-            //send current status to user
         } catch (err) {
             console.log("room status ======> ", err.message);
         }
@@ -445,7 +453,8 @@ const gameManager = (socket, io) => {
                 throw error("invalid grab");
             }
             let room = getCRoom();
-            room.grabBank(socket, multiple);
+            // room.grabBank(socket, multiple);
+            console.log(multiple);
         } catch (err) {
             console.log("ready on ======> ", err.message);
         }
