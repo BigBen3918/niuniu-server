@@ -3,24 +3,24 @@
 const NiuNiu = {
     scores: {
         //niuniu
-        "NoBull": 0,   //the sum of the points of any three cards is not an integer multiple of 10
-        "Cattle1": 1,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle2": 2,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle   
-        "Cattle3": 3,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle4": 4,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle5": 5,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle6": 6,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle7": 7,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle8": 8,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "Cattle9": 9,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
-        "NiuNiu": 10,  //The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards is an integer multiple of 10.
-        "GoldBull": 11,
-        "GoldBullion": 12,
-        "Straight": 13,
-        "FullHouse": 14,
-        "TenSmall": 15,
-        "Forty": 16,
-        "BombBull": 17
+        "NoBull": 0,        //  the sum of the points of any three cards is not an integer multiple of 10
+        "Cattle1": 1,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle2": 2,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle   
+        "Cattle3": 3,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle4": 4,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle5": 5,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle6": 6,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle7": 7,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle8": 8,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "Cattle9": 9,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards mod (10) is equal to a few, that is, the number of cattle
+        "NiuNiu": 10,       //  The sum of the points of 3 of the 5 cards is an integer multiple of 10, and the sum of the points of the other 2 cards is an integer multiple of 10.
+        "GoldBull": 11,     //  3 of 5 cards are the same
+        "GoldBullion": 12,  //  3 of the 5 cards are the same, and the sum of the two is 10
+        "Straight": 13,     //  The numbers in the 5 cards are straight (2, 3, 4, 5, 6)
+        "FullHouse": 14,    //  5 cards of AABBB type (3 identical cards plus 2 identical cards)
+        "TenSmall": 15,     //  the sum of the points of the 5 cards in the no-suit is less than or equal to 10
+        "Forty": 16,        //  The sum of the points of the 5 cards in the no-suit is greater than or equal to 40
+        "BombBull": 17      //  4 out of 5 cards have the same value (ABBBB)
         ,
     },
     multiples: {

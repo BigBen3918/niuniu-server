@@ -43,58 +43,217 @@ class Room {
         name = "GBRoom",
         maxPlayer = 6
     ) {
+        // setting 
         this.id = v4();
         this.creator = creator;
         this.cost = cost;
         this.setting = setting;
         this.name = name ? name : "GBRoom";
         this.maxPlayer = maxPlayer && maxPlayer <= 6 ? maxPlayer : 6;
-        this.players = [];      // all players in room
-        this.readyPlayer = 0;       // ready players of room's players
-        this.gamingPlayer = 0;      // gaming players
-        this.gameStatus = 0; // 0 is initial, 1 is ready, 2 is gaming, 3 is end
-        this.gameInterval = setInterval(this.mainloop, [2]);
+
+        this.players = [];              // all players in room
+        this.gameStatus = 0;            // 0 is initial, 1 is ready, 2-4 is gaming, 5 is end
+        // this.gameInterval = setInterval(this.mainloop, [5]);
+        this.roller = 0;
     };
-    enterRoom(user) {
-        if (this.players.findIndex((player) => player.id == user.id) != -1) {
+    // join and leave actions
+    enterRoom(userSocket) {
+        if (this.players.length > this.maxPlayer) {
+            throw new Error("game is fullfilled");
+        }
+        if (this.players.findIndex((player) => player.socket.id == userSocket.id) != -1) {
             throw new Error("already enterd");
         }
-        this.players.push(user);
-        console.log("enterRoom", user.id);
-    }
-    leaveRoom(user) {
-        let index = this.players.findIndex((player) => player.id == user.id);
-        if (index != -1) {
-            this.players.splice(index, 1);
+        let playerInitData = {
+            socket: userSocket,
+            isReady: false,
+            cards: [],
+            roll: "ready",
+            score: {
+                type: "",
+                score: 0,
+                multiple: 0,
+                cards: [],
+                activityCards: []
+            },
+            id: this.players.length
         }
+        this.players.push(playerInitData);
+        console.log("enterRoom", userSocket.id);
+    };
+    isReady(userSocket) {
+        let userIndex = this.players.findIndex((player) => player.socket.id == userSocket.id);
+        if (userIndex == -1) {
+            throw new Error("invalid request");
+        }
+        this.players[userIndex].isReady = true;
+        //if game is not started
+        if (this.gameStatus == 0) {
+            startRound();
+        }
+    };
+    leaveRoom(userSocket) {
+        let playerIndex = this.getPlayerIndex(userSocket);
+        if (playerIndex == this.roller) this.roller++;
+        if (playerIndex != -1) {
+            this.players.splice(playerIndex, 1);
+        }
+    }
+
+    // game roll
+    grabBank(userSocket, multiple) {
+        if (this.gameStatus != 1) throw new Error("invalid roll");
+        let playerIndex = this.getPlayerIndex(userSocket);
+        if (playerIndex != this.roller) throw new Error("invalid roll");
+        let player = this.players[playerIndex];
+        player.grab = multiple;
+
+        this.roller++;
+        this.broadcastToPlayers("grabBank", { player: getUserData(player.socket.id), multiple: multiple, roller: this.roller });
+        if (this.roller == this.players.length) {
+            //end grab
+            endGrab();
+        }
+    }
+    double(userSocket, multiple) {
+        if (this.gameStatus != 2) throw new Error("invalid roll");
+        let playerIndex = this.getPlayerIndex(userSocket);
+        if (playerIndex != this.roller) throw new Error("invalid roll");
+        let player = this.players[playerIndex];
+        player.double = double;
+
+        this.roller++;
+        //if next roller is banker, skip step
+        if (this.players[this.roller].roll == "banker") this.roller++;
+
+        this.broadcastToPlayers("double", { player: getUserData(player.socket.id), multiple: multiple, roller: this.roller });
+        //if roll is ended, round end
+        if (this.roller == this.players.length) {
+            //end double
+            endRound();
+        }
+    }
+
+    // main loop
+    startRound() {
+        if (this.gameStatus != 0) return;
+        let readyPlayers = this.getReadyPlayers();
+        if (readyPlayers.length >= 2) {
+            // start Round;
+            let randomCards = NiuNiu.getRandomCards(readyPlayers.length);
+            this.players.forEach((player, index) => {
+                player.onRound = true;
+                player.cards = [...randomCards[index]];
+            });
+            this.broadcastToPlayers("round start");
+            this.gameStatus = 1;
+        }
+    }
+    endGrab() {
+        if (this.roller != this.players.length || this.gameStatus != 1) throw new Error("invalid endGrab");
+        let highestGrab = Math.max(this.players.map((player) => player.grab));
+        let candidators = this.players.map(player => player.grab == highestGrab);
+        let banker = candidators[Math.floor(Math.random() * candidators.length)];
+        this.players.map((player) => {
+            if (player.socket.id == banker.socket.id) player.roll = "banker";
+            else player.roll = "idler";
+        })
+        this.gameStatus = 2;
+        this.roller = 0;
+        if (this.players[0].roll == "banker") this.roller++;
+        this.broadcastToPlayers("endGrab");
+    }
+    endRound() {
+        if (this.roller != this.players.length || this.gameStatus != 1) throw new Error("invalid endRound");
+        this.gameStatus = 5;
+        let banker = this.getBanker();
+        let idlers = this.getIdlers();
+
+        let bankerScore = NiuNiu.getScore(banker.cards);
+        banker.roundScore = bankerScore;
+        idlers.map(idler => {
+            let idlerScore = NiuNiu.getScore(idler.cards);
+            idler.roundScore = idlerScore;
+            if (idlerScore.score > bankerScore.score) {
+                //idler win
+            } else {
+                //bankerWin
+            }
+        });
+
+        this.broadcastToPlayers("endRound");
+        setTimeout(() => {
+            this.roller = 0;
+            this.gameStatus = 0;
+            this.startRound();
+        }, 10000)
+    }
+
+    //emit
+    broadcastToPlayers(event, data = {}) {
+        this.players.map(player => {
+            player.socket.emit(event, data);
+        });
+    }
+    // get status
+    getPlayerIndex(userSocket) {
+        return this.players.findIndex((player) => player.socket.id == userSocket.id);
+    }
+    getPlayer(userSocket) {
+        return this.players.find((player) => player.socket.id == userSocket.id);
     }
     getPlayers() {
         return this.players;
     }
-    emitPlayers(event, data, flag) {
-        if (flag === 0) {
-            this.players.map((player, index) => {
-                let arr = [];
-                arr.push(data[index * 5 + 1]);
-                arr.push(data[index * 5 + 2]);
-                arr.push(data[index * 5 + 3]);
-                arr.push(data[index * 5 + 4]);
+    getReadyPlayers() {
+        return this.players.filter((player) => player.isReady);
+    }
+    getBanker() {
+        return this.players.find((player) => player.roll == "banker");
+    }
+    getIdlers() {
+        return this.players.filter((player) => player.roll == "idler");
+    }
 
-                console.log(arr);
-                player.emit(event, { cards: arr, players: this.readyPlayer });
-            });
+    getRoomStatus(userSocket) {
+        return {
+            id: room.id,
+            creator: getUserData(room.creator.id),
+            cost: room.cost,
+            setting: room.setting,
+            name: room.name,
+            maxPlayer: room.maxPlayer,
+            players: room.players.map((player) => getUserData(player.socket.id)),
+            gameStatus: this.gameStatus,
+            roller: this.roller,
+            playerStatus: room.players.map((player) => {
+                if (gameStatus == 5) {
+                    return {
+                        player: getUserData(player.socket.id),
+                        roll: player.role,
+                        grab: player.grab,
+                        double: player.double,
+                        cards: player.cards,
+                        score: player.roundScore
+                    }
+                }
+                else {
+                    // only can see his 4 card
+                    let cards = [];
+                    if (player.socket.id == userSocket.id)
+                        cards = player.cards.slice(0, 4);
+                    return {
+                        player: getUserData(player.socket.id),
+                        roll: player.role,
+                        grab: player.grab,
+                        double: player.double,
+                        cards: cards,
+                        score: player.roundScore
+                    }
+                }
+            })
         }
     }
-    checkPrepare() {
-        if (this.players.length > 1) {
-            this.gameStatus = 1;
-        } else {
-            this.gameStatus = 0;
-        }
-    }
-    
-    mainloop() { }
-
     // destructor
     destroy() {
         if (this.gameInterval) clearInterval(this.gameInterval)
@@ -124,10 +283,9 @@ const roomManager = (socket, io) => {
             setting: room.setting,
             name: room.name,
             maxPlayer: room.maxPlayer,
-            players: room.players.map((player) => getUserData(player.id)),
+            players: room.players.map((player) => getUserData(player.socket.id)),
         });
 
-        room.checkPrepare();
     };
     const removeFromRooms = () => {
         // find room that user entered
@@ -140,7 +298,6 @@ const roomManager = (socket, io) => {
         // remove from room
         global.users[socket.id].roomId = null;
         room.leaveRoom(socket);
-        room.readyPlayer -= 1;
 
         // delete room that no one in it
         if (room.players.length == 0) {
@@ -230,18 +387,6 @@ const roomManager = (socket, io) => {
 
 const gameManager = (socket, io) => {
 
-    // functions
-    const randomCard = (len) => {
-        var arr = [];
-        for (let i = 0; i < len * 5;) {
-            let rand = Math.floor(Math.random() * 39 + 1);
-            if (arr.indexOf(rand) === -1 && rand % 10 !== 0) {
-                arr.push(rand);
-                i++;
-            }
-        }
-        return arr;
-    };
     const getCRoom = () => {
         if (!global.users[socket.id]) throw new Error("auth error");
         if (global.users[socket.id].roomId == null)
@@ -251,23 +396,12 @@ const gameManager = (socket, io) => {
         );
         return room;
     };
-    const init_cards = (room) => {
-        let cards = randomCard(room.readyPlayer);
-        room.emitPlayers("start game", cards, 0);
-    };
 
     // listeners
-    socket.on("get ready", () => {
+    socket.on("is ready", () => {
         try {
             let room = getCRoom();
-
-            room.readyPlayer += 1;
-            if (
-                room.readyPlayer === room.players.length &&
-                room.players.length > 1
-            ) {
-                init_cards(room);
-            }
+            room.isReady(socket);
         } catch (err) {
             console.log("get ready ======> ", err.message);
         }
@@ -275,29 +409,35 @@ const gameManager = (socket, io) => {
     socket.on("room status", () => {
         try {
             let room = getCRoom();
+            let status = room.getRoomStatus(socket);
+            socket.emit("room status", status);
             //send current status to user
         } catch (err) {
             console.log("room status ======> ", err.message);
         }
     });
-    socket.on("ready on", () => {
+    socket.on("grab bank", (data) => {
         try {
-            let room = getCRoom();
-
-            room.gamingPlayer++;
-            if (room.gamingPlayer === room.readyPlayer) {
-                room.gameStatus = 2;
+            const { multiple } = data;
+            if ([0, 1, 2, 3, 4].findIndex(multiple) == -1) {
+                throw error("invalid grab");
             }
+            let room = getCRoom();
+            room.grabBank(socket, multiple);
         } catch (err) {
             console.log("ready on ======> ", err.message);
         }
     });
-    socket.on("bet", (data) => {
+    socket.on("double", (data) => {
         try {
-            console.log(data);
-            // let room = getCRoom();
+            const { multiple } = data;
+            if ([1, 2, 3, 4].findIndex(multiple) == -1) {
+                throw error("invalid grab");
+            }
+            let room = getCRoom();
+            room.double(socket, multiple);
         } catch (err) {
-            console.log("bet ======> ", err.message);
+            console.log("ready on ======> ", err.message);
         }
     });
 };
