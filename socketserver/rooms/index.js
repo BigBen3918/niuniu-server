@@ -98,6 +98,7 @@ class Room {
         if (playerIndex != -1) {
             this.players.splice(playerIndex, 1);
         }
+        nextRoll();
     }
 
     // game roll
@@ -107,13 +108,8 @@ class Room {
         if (playerIndex != this.roller) throw new Error("invalid roll");
         let player = this.players[playerIndex];
         player.grab = multiple;
-
-        this.roller++;
-        this.broadcastToPlayers("grabBank", { player: getUserData(player.socket.id), multiple: multiple, roller: this.roller });
-        if (this.roller == this.players.length) {
-            //end grab
-            endGrab();
-        }
+        this.broadcastToPlayers("grabBank", { player: getUserData(player.socket.id), multiple: multiple });
+        nextRoll();
     }
     double(userSocket, multiple) {
         if (this.gameStatus != 2) throw new Error("invalid roll");
@@ -121,19 +117,29 @@ class Room {
         if (playerIndex != this.roller) throw new Error("invalid roll");
         let player = this.players[playerIndex];
         player.double = double;
-
-        this.roller++;
-        //if next roller is banker, skip step
-        if (this.players[this.roller].roll == "banker") this.roller++;
-
-        this.broadcastToPlayers("double", { player: getUserData(player.socket.id), multiple: multiple, roller: this.roller });
-        //if roll is ended, round end
-        if (this.roller == this.players.length) {
-            //end double
-            endRound();
-        }
+        this.broadcastToPlayers("double", { player: getUserData(player.socket.id), multiple: multiple });
+        nextRoll();
     }
 
+    nextRoll() {
+        if (this.gameStatus == 1) {
+            this.roller++;
+            if (this.roller == this.getReadyPlayers().length) {
+                //end grab
+                endGrab();
+            }
+        } else if (this.gameStatus == 2) {
+            this.roller++;
+            //if next roller is banker, skip step
+            if (this.players[this.roller].roll == "banker") this.roller++;
+
+            //if roll is ended, round end
+            if (this.roller == this.getReadyPlayers().length) {
+                //end double
+                endRound();
+            }
+        }
+    }
     // main loop
     startRound() {
         if (this.gameStatus != 0) return;
@@ -207,6 +213,9 @@ class Room {
     }
     getReadyPlayers() {
         return this.players.filter((player) => player.isReady);
+    }
+    getOnPlayers() {
+        return this.players.filter((player) => player.onRound);
     }
     getBanker() {
         return this.players.find((player) => player.roll == "banker");
@@ -327,7 +336,7 @@ const roomManager = (socket, io) => {
                 setting: room.setting,
                 name: room.name,
                 maxPlayer: room.maxPlayer,
-                players: room.players.map((player) => getUserData(player.id)),
+                players: room.players.map((player) => getUserData(player.socket.id)),
             };
         });
         io.sockets.emit("rooms", { rooms: roomInfos });
