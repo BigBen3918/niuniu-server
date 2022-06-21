@@ -7,32 +7,32 @@ const { delay } = require("../../utils");
 const { NiuNiu } = require("../niuniu");
 
 // test
-{
-    //ten small
-    var tempCards = [0, 1, 3, 13, 23];
-    var score = NiuNiu.getScore(tempCards);
-    console.log(score);
-    //FullHouse
-    tempCards = [14, 11, 1, 4, 24];
-    score = NiuNiu.getScore(tempCards);
-    console.log(score);
-    //GoldBull
-    tempCards = [14, 11, 5, 4, 24];
-    score = NiuNiu.getScore(tempCards);
-    console.log(score);
-    //Straight
-    tempCards = [4, 1, 2, 15, 23];
-    score = NiuNiu.getScore(tempCards);
-    console.log(score);
-    //Cattle3
-    tempCards = [4, 1, 2, 13, 23];
-    score = NiuNiu.getScore(tempCards);
-    console.log(score);
+// {
+//     //ten small
+//     var tempCards = [0, 1, 3, 13, 23];
+//     var score = NiuNiu.getScore(tempCards);
+//     console.log(score);
+//     //FullHouse
+//     tempCards = [14, 11, 1, 4, 24];
+//     score = NiuNiu.getScore(tempCards);
+//     console.log(score);
+//     //GoldBull
+//     tempCards = [14, 11, 5, 4, 24];
+//     score = NiuNiu.getScore(tempCards);
+//     console.log(score);
+//     //Straight
+//     tempCards = [4, 1, 2, 15, 23];
+//     score = NiuNiu.getScore(tempCards);
+//     console.log(score);
+//     //Cattle3
+//     tempCards = [4, 1, 2, 13, 23];
+//     score = NiuNiu.getScore(tempCards);
+//     console.log(score);
 
-    //generateRandomCard
-    let randomCards = NiuNiu.getRandomCards(5);
-    console.log("randomCards", randomCards);
-}
+//     //generateRandomCard
+//     let randomCards = NiuNiu.getRandomCards(5);
+//     console.log("randomCards", randomCards);
+// }
 
 class Room {
     constructor(
@@ -110,36 +110,34 @@ class Room {
     grabBank(userSocket, multiple) {
         if (this.gameStatus != 1) throw new Error("invalid roll");
         let playerIndex = this.getPlayerIndex(userSocket);
-        if (playerIndex != this.roller) throw new Error("invalid roll");
         let player = this.players[playerIndex];
         player.grab = multiple;
         this.broadcastToPlayers("grabBank", {
             player: getUserData(player.socket.id),
             multiple: multiple,
         });
-        nextRoll();
+        this.nextRoll();
     }
     double(userSocket, multiple) {
         if (this.gameStatus != 2) throw new Error("invalid roll");
         let playerIndex = this.getPlayerIndex(userSocket);
-        if (playerIndex != this.roller) throw new Error("invalid roll");
         let player = this.players[playerIndex];
         player.doubles = double;
         this.broadcastToPlayers("double", {
             player: getUserData(player.socket.id),
             multiple: multiple,
         });
-        nextRoll();
+        this.nextRoll();
     }
     nextRoll() {
         if (this.gameStatus == 1) {
             this.roller++;
-            if (this.roller == this.getReadyPlayers().length) {
+            if (this.roller === this.getReadyPlayers().length) {
                 //end grab
                 this.endGrab();
             }
-        } else if (this.gameStatus == 2) {
-            this.roller++;
+        } else if (this.gameStatus === 2) {
+            this.roller++; 
             //if next roller is banker, skip step
             if (this.players[this.roller].roll == "banker") this.roller++;
 
@@ -147,7 +145,7 @@ class Room {
             if (this.roller == this.getReadyPlayers().length) {
                 //end double
                 this.endRound();
-            }
+            } 
         }
     }
 
@@ -449,14 +447,13 @@ const gameManager = (socket, io) => {
     socket.on("grab bank", (data) => {
         try {
             const { multiple } = data;
-            if ([0, 1, 2, 3, 4].findIndex(multiple) == -1) {
-                throw error("invalid grab");
+            if ([0, 1, 2, 3, 4].indexOf(multiple) == -1) {
+                throw new Error("invalid grab");
             }
             let room = getCRoom();
-            // room.grabBank(socket, multiple);
-            console.log(multiple);
+            room.grabBank(socket, multiple);
         } catch (err) {
-            console.log("ready on ======> ", err.message);
+            console.log("grab bank ======> ", err.message);
         }
     });
     socket.on("double", (data) => {
