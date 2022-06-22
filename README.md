@@ -1,0 +1,3 @@
+# niuniu-server
+
+### This is card game server like poker. Server built by Socket.IO and interated with C#...
