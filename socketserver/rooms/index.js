@@ -52,7 +52,7 @@ class Room {
 
         this.players = []; // all players in room
         this.gameStatus = 0; // 0 is initial, 1 is ready, 2-4 is gaming, 5 is end
-        this.roller = 0;
+        this.roleCount = 0;
         // this.gameInterval = setInterval(this.mainloop, [5]);
     }
 
@@ -72,8 +72,9 @@ class Room {
             socket: userSocket,
             isReady: false,
             cards: [],
-            roll: "ready",
-            score: {
+            role: "ready",
+            score: 0,
+            roundScore: {
                 type: "",
                 score: 0,
                 multiple: 0,
@@ -81,8 +82,8 @@ class Room {
                 activityCards: [],
             },
             id: this.players.length,
-            grab: 5,
-            doubles: 5,
+            grab: -1,
+            doubles: -1,
         };
         this.players.push(playerInitData);
         console.log("enterRoom", userSocket.id);
@@ -103,13 +104,13 @@ class Room {
     leaveRoom(userSocket) {
         let playerIndex = this.getPlayerIndex(userSocket);
         this.players.splice(playerIndex, 1);
-        this.roller++;
+        this.roleCount++;
         this.nextRoll();
     }
 
-    // game roll
+    // game role
     grabBank(userSocket, multiple) {
-        if (this.gameStatus != 1) throw new Error("invalid roll");
+        if (this.gameStatus != 1) throw new Error("invalid role");
         let playerIndex = this.getPlayerIndex(userSocket);
         let player = this.players[playerIndex];
         player.grab = multiple;
@@ -119,12 +120,12 @@ class Room {
         });
         this.nextRoll();
     }
-    double(userSocket, multiple) {
-        if (this.gameStatus != 2) throw new Error("invalid roll");
+    doubles(userSocket, multiple) {
+        if (this.gameStatus != 2) throw new Error("invalid role");
         let playerIndex = this.getPlayerIndex(userSocket);
         let player = this.players[playerIndex];
         player.doubles = multiple;
-        this.broadcastToPlayers("double", {
+        this.broadcastToPlayers("doubles", {
             player: getUserData(player.socket.id),
             multiple: multiple,
         });
@@ -132,19 +133,18 @@ class Room {
     }
     nextRoll() {
         if (this.gameStatus == 1) {
-            this.roller++;
-            if (this.roller === this.getReadyPlayers().length) {
+            this.roleCount++;
+            console.log("nextRoll : endGrab", this.roleCount);
+            if (this.roleCount >= this.getReadyPlayers().length) {
                 // end grab
                 this.endGrab();
             }
         } else if (this.gameStatus === 2) {
-            this.roller++;
-            // if next roller is banker, skip step
-            if (this.players[this.roller].roll == "banker") this.roller++;
+            this.roleCount++;
 
-            // if roll is ended, round end
-            if (this.roller == this.getReadyPlayers().length) {
-                //end double
+            // if role is ended, round end
+            if (this.roleCount >= this.getReadyPlayers().length) {
+                //end doubles
                 this.endRound();
             }
         }
@@ -160,15 +160,18 @@ class Room {
             this.players.forEach((player, index) => {
                 player.onRound = true;
                 player.cards = [...randomCards[index]];
+                player.grab = -1;
+                player.doubles = -1;
             });
-            this.roller = 0;
+            this.roleCount = 0;
             this.gameStatus = 1;
             this.broadcastToPlayers("round start");
         }
     }
     endGrab() {
-        if (this.roller != this.players.length || this.gameStatus != 1)
+        if (this.roleCount != this.players.length || this.gameStatus != 1)
             throw new Error("invalid endGrab");
+
         let bump = this.players.map((player) => player.grab);
         let highestGrab = Math.max(...bump);
         let candidators = this.players.filter(
@@ -177,16 +180,16 @@ class Room {
         let banker =
             candidators[Math.floor(Math.random() * candidators.length)];
         this.players.map((player) => {
-            if (player.socket.id == banker.socket.id) player.roll = "banker";
-            else player.roll = "idler";
+            if (player.socket.id == banker.socket.id) player.role = "banker";
+            else player.role = "idler";
         });
         this.gameStatus = 2;
-        this.roller = 0;
-        if (this.players[0].roll == "banker") this.roller++;
+        this.roleCount = 1;
+        console.log("endGrab 1 : ", this.players);
         this.broadcastToPlayers("endGrab");
     }
     endRound() {
-        if (this.roller != this.players.length || this.gameStatus != 2)
+        if (this.roleCount != this.players.length || this.gameStatus != 2)
             throw new Error("invalid endRound");
         this.gameStatus = 5;
         let banker = this.getBanker();
@@ -204,13 +207,14 @@ class Room {
             }
         });
 
+        console.log(this.players);
         this.broadcastToPlayers("endRound");
         setTimeout(() => {
-            this.roller = 0;
+            this.roleCount = 0;
             this.gameStatus = 0;
             this.players.map((player) => {
-                player.grab = 5;
-                player.doubles = 5;
+                player.grab = -1;
+                player.doubles = -1;
             });
             this.startRound();
         }, 10000);
@@ -242,10 +246,10 @@ class Room {
         return this.players.filter((player) => player.onRound);
     }
     getBanker() {
-        return this.players.find((player) => player.roll == "banker");
+        return this.players.find((player) => player.role == "banker");
     }
     getIdlers() {
-        return this.players.filter((player) => player.roll == "idler");
+        return this.players.filter((player) => player.role == "idler");
     }
     getRoomStatus(userSocket) {
         return {
@@ -259,14 +263,14 @@ class Room {
                 getUserData(player.socket.id)
             ),
             gameStatus: this.gameStatus,
-            roller: this.roller,
+            roleCount: this.roleCount,
             playerStatus: this.players.map((player) => {
                 if (this.gameStatus == 5) {
                     return {
-                        player: getUserData(player.socket.id),
-                        roll: player.role,
+                        ...getUserData(player.socket.id),
+                        role: player.role,
                         grab: player.grab,
-                        doubles: player.double,
+                        doubles: player.doubles,
                         cards: player.cards,
                         score: player.roundScore,
                     };
@@ -276,10 +280,10 @@ class Room {
                     if (player.socket.id == userSocket.id)
                         cards = player.cards.slice(0, 4);
                     return {
-                        player: getUserData(player.socket.id),
-                        roll: player.role,
+                        ...getUserData(player.socket.id),
+                        role: player.role,
                         grab: player.grab,
-                        doubles: player.double,
+                        doubles: player.doubles,
                         cards: cards,
                         score: player.roundScore,
                     };
@@ -320,7 +324,11 @@ const roomManager = (socket, io) => {
             players: room.players.map((player) =>
                 getUserData(player.socket.id)
             ),
+            playerStatus: room.players.map((player) =>
+                getUserData(player.socket.id)
+            ),
         });
+        broadcastRooms();
     };
     const removeFromRooms = () => {
         // find room that user entered
@@ -361,6 +369,9 @@ const roomManager = (socket, io) => {
                 name: room.name,
                 maxPlayer: room.maxPlayer,
                 players: room.players.map((player) =>
+                    getUserData(player.socket.id)
+                ),
+                playerStatus: room.players.map((player) =>
                     getUserData(player.socket.id)
                 ),
             };
@@ -462,14 +473,14 @@ const gameManager = (socket, io) => {
             console.log("grab bank ======> ", err);
         }
     });
-    socket.on("double", (data) => {
+    socket.on("doubles", (data) => {
         try {
             const { multiple } = data;
             if ([1, 2, 3, 4].indexOf(multiple) == -1) {
                 throw error("invalid grab");
             }
             let room = getCRoom();
-            room.double(socket, multiple);
+            room.doubles(socket, multiple);
         } catch (err) {
             console.log("ready on ======> ", err.message);
         }
