@@ -55,6 +55,7 @@ class Room {
         this.roller = 0;
         // this.gameInterval = setInterval(this.mainloop, [5]);
     }
+
     // join and leave actions
     enterRoom(userSocket) {
         if (this.players.length > this.maxPlayer) {
@@ -80,6 +81,8 @@ class Room {
                 activityCards: [],
             },
             id: this.players.length,
+            grab: 5,
+            doubles: 5,
         };
         this.players.push(playerInitData);
         console.log("enterRoom", userSocket.id);
@@ -99,10 +102,8 @@ class Room {
     }
     leaveRoom(userSocket) {
         let playerIndex = this.getPlayerIndex(userSocket);
-        if (playerIndex == this.roller) this.roller++;
-        if (playerIndex != -1) {
-            this.players.splice(playerIndex, 1);
-        }
+        this.players.splice(playerIndex, 1);
+        this.roller++;
         this.nextRoll();
     }
 
@@ -122,7 +123,7 @@ class Room {
         if (this.gameStatus != 2) throw new Error("invalid roll");
         let playerIndex = this.getPlayerIndex(userSocket);
         let player = this.players[playerIndex];
-        player.doubles = double;
+        player.doubles = multiple;
         this.broadcastToPlayers("double", {
             player: getUserData(player.socket.id),
             multiple: multiple,
@@ -133,19 +134,19 @@ class Room {
         if (this.gameStatus == 1) {
             this.roller++;
             if (this.roller === this.getReadyPlayers().length) {
-                //end grab
+                // end grab
                 this.endGrab();
             }
         } else if (this.gameStatus === 2) {
-            this.roller++; 
-            //if next roller is banker, skip step
+            this.roller++;
+            // if next roller is banker, skip step
             if (this.players[this.roller].roll == "banker") this.roller++;
 
-            //if roll is ended, round end
+            // if roll is ended, round end
             if (this.roller == this.getReadyPlayers().length) {
                 //end double
                 this.endRound();
-            } 
+            }
         }
     }
 
@@ -168,8 +169,9 @@ class Room {
     endGrab() {
         if (this.roller != this.players.length || this.gameStatus != 1)
             throw new Error("invalid endGrab");
-        let highestGrab = Math.max(this.players.map((player) => player.grab));
-        let candidators = this.players.map(
+        let bump = this.players.map((player) => player.grab);
+        let highestGrab = Math.max(...bump);
+        let candidators = this.players.filter(
             (player) => player.grab == highestGrab
         );
         let banker =
@@ -206,6 +208,10 @@ class Room {
         setTimeout(() => {
             this.roller = 0;
             this.gameStatus = 0;
+            this.players.map((player) => {
+                player.grab = 5;
+                player.doubles = 5;
+            });
             this.startRound();
         }, 10000);
     }
@@ -453,13 +459,13 @@ const gameManager = (socket, io) => {
             let room = getCRoom();
             room.grabBank(socket, multiple);
         } catch (err) {
-            console.log("grab bank ======> ", err.message);
+            console.log("grab bank ======> ", err);
         }
     });
     socket.on("double", (data) => {
         try {
             const { multiple } = data;
-            if ([1, 2, 3, 4].findIndex(multiple) == -1) {
+            if ([1, 2, 3, 4].indexOf(multiple) == -1) {
                 throw error("invalid grab");
             }
             let room = getCRoom();
