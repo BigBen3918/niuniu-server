@@ -1,4 +1,12 @@
 const UserSchema = require("../models/user");
+const images = [
+    "https://res.cloudinary.com/galaxy-digital/image/upload/v1655949708/Avatar3_mqaulu.png",
+    "https://res.cloudinary.com/galaxy-digital/image/upload/v1655949708/Avatar0_iuglex.png",
+    "https://res.cloudinary.com/galaxy-digital/image/upload/v1655949708/Avatar1_h3uepr.png",
+    "https://res.cloudinary.com/galaxy-digital/image/upload/v1655949708/Avatar2_uxhtq2.png",
+    "https://res.cloudinary.com/galaxy-digital/image/upload/v1655949708/Avatar4_md51jg.png",
+    "https://res.cloudinary.com/galaxy-digital/image/upload/v1655949708/Avatar5_dneanm.png",
+];
 
 const UserController = {
     createUser: async (props) => {
@@ -12,7 +20,8 @@ const UserController = {
         const newUser = new UserSchema({
             username: username,
             phonenumber: phonenumber,
-            password: password
+            password: password,
+            image: images[Math.floor(Math.random() * 6)],
         });
 
         let userData = await newUser.save();
@@ -44,14 +53,13 @@ const UserController = {
         });
 
         user.balance = Number(user.balance) + Number(amount);
-        if (user.balance < 0) {
-            let error = new Error("Insufficient balance");
-            throw error;
+        if (Number(user.balance) < 0) {
+            user.balance = 0;
         }
         const userData = await user.save();
 
         return userData;
-    }
+    },
 };
 
 module.exports = { UserController };

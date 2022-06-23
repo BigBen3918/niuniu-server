@@ -87,7 +87,7 @@ const getUserData = (socketId) => {
     let user = global.users[socketId];
     return {
         username: user.username,
-        score: user.score,
+        balance: user.balance,
         id: user._id,
         image: user.image,
         phonenumber: user.phonenumber,

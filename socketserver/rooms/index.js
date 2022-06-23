@@ -5,6 +5,7 @@ const { v4 } = require("uuid");
 const { getUserData } = require("../auth");
 const { delay } = require("../../utils");
 const { NiuNiu } = require("../niuniu");
+const { UserController } = require("../../controllers/userController");
 
 // test
 // {
@@ -73,7 +74,7 @@ class Room {
             isReady: false,
             cards: [],
             role: "ready",
-            score: 0,
+            balance: 0,
             roundScore: {
                 type: "",
                 score: 0,
@@ -105,7 +106,6 @@ class Room {
         let playerIndex = this.getPlayerIndex(userSocket);
         this.players.splice(playerIndex, 1);
         this.roleCount++;
-        this.nextRoll();
     }
 
     // game role
@@ -113,6 +113,9 @@ class Room {
         if (this.gameStatus != 1) throw new Error("invalid role");
         let playerIndex = this.getPlayerIndex(userSocket);
         let player = this.players[playerIndex];
+        if (player.grab !== -1) {
+            return;
+        }
         player.grab = multiple;
         this.broadcastToPlayers("grabBank", {
             player: getUserData(player.socket.id),
@@ -185,7 +188,6 @@ class Room {
         });
         this.gameStatus = 2;
         this.roleCount = 1;
-        console.log("endGrab 1 : ", this.players);
         this.broadcastToPlayers("endGrab");
     }
     endRound() {
@@ -201,13 +203,37 @@ class Room {
             let idlerScore = NiuNiu.getScore(idler.cards);
             idler.roundScore = idlerScore;
             if (idlerScore.score > bankerScore.score) {
-                //idler win
+                // idler win
+                var realMoney =
+                    this.cost *
+                    idlerScore.multiple *
+                    banker.grab *
+                    idler.doubles;
+                UserController.updatebalance({
+                    username: global.users[idler.socket.id].username,
+                    amount: realMoney,
+                });
+                UserController.updatebalance({
+                    username: global.users[banker.socket.id].username,
+                    amount: -realMoney,
+                });
             } else {
-                //bankerWin
+                // bankerWin
+                var realMoney =
+                    this.cost *
+                    bankerScore.multiple *
+                    banker.grab *
+                    idler.doubles;
+                UserController.updatebalance({
+                    username: global.users[banker.socket.id].username,
+                    amount: realMoney,
+                });
+                UserController.updatebalance({
+                    username: global.users[idler.socket.id].username,
+                    amount: -realMoney,
+                });
             }
         });
-
-        console.log(this.players);
         this.broadcastToPlayers("endRound");
         setTimeout(() => {
             this.roleCount = 0;
@@ -272,7 +298,7 @@ class Room {
                         grab: player.grab,
                         doubles: player.doubles,
                         cards: player.cards,
-                        score: player.roundScore,
+                        roundScore: player.roundScore,
                     };
                 } else {
                     // only can see his 4 card
@@ -285,7 +311,7 @@ class Room {
                         grab: player.grab,
                         doubles: player.doubles,
                         cards: cards,
-                        score: player.roundScore,
+                        roundScore: player.roundScore,
                     };
                 }
             }),
