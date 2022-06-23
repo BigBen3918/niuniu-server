@@ -4,3 +4,8 @@ npm-debug.log
 client/bower_components
 bin
 .env
+.env.*
+build
+dist
+yarn.lock
+screenshots
