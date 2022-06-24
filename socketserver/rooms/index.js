@@ -128,6 +128,9 @@ class Room {
         let playerIndex = this.getPlayerIndex(userSocket);
         let player = this.players[playerIndex];
         player.doubles = multiple;
+        if (player.doubles !== -1) {
+            return;
+        }
         this.broadcastToPlayers("doubles", {
             player: getUserData(player.socket.id),
             multiple: multiple,
@@ -135,18 +138,18 @@ class Room {
         this.nextRoll();
     }
     nextRoll() {
+        let onPlayers = this.getOnPlayers();
         if (this.gameStatus == 1) {
-            this.roleCount++;
+            let grabedPlayers = onPlayers.filter((player) => player.grab != -1);
             console.log("nextRoll : endGrab", this.roleCount);
-            if (this.roleCount >= this.getReadyPlayers().length) {
+            if (grabedPlayers.length >= this.getOnPlayers().length) {
                 // end grab
                 this.endGrab();
             }
         } else if (this.gameStatus === 2) {
-            this.roleCount++;
-
+            let multipledPlayers = onPlayers.filter((player) => player.multiple != -1);
             // if role is ended, round end
-            if (this.roleCount >= this.getReadyPlayers().length) {
+            if (multipledPlayers.length >= this.getOnPlayers().length) {
                 //end doubles
                 this.endRound();
             }
@@ -160,7 +163,7 @@ class Room {
         if (readyPlayers.length >= 2) {
             // start Round;
             let randomCards = NiuNiu.getRandomCards(readyPlayers.length);
-            this.players.forEach((player, index) => {
+            readyPlayers.forEach((player, index) => {
                 player.onRound = true;
                 player.cards = [...randomCards[index]];
                 player.grab = -1;
@@ -172,27 +175,22 @@ class Room {
         }
     }
     endGrab() {
-        if (this.roleCount != this.players.length || this.gameStatus != 1)
-            throw new Error("invalid endGrab");
-
-        let bump = this.players.map((player) => player.grab);
+        let OnPlayers = this.getOnPlayers();
+        let bump = OnPlayers.map((player) => player.grab);
         let highestGrab = Math.max(...bump);
-        let candidators = this.players.filter(
+        let candidators = OnPlayers.filter(
             (player) => player.grab == highestGrab
         );
         let banker =
             candidators[Math.floor(Math.random() * candidators.length)];
-        this.players.map((player) => {
-            if (player.socket.id == banker.socket.id) player.role = "banker";
+        OnPlayers.map((player) => {
+            if (player.socket.id == banker.socket.id) { player.role = "banker"; player.multiple = 1 }
             else player.role = "idler";
         });
         this.gameStatus = 2;
-        this.roleCount = 1;
         this.broadcastToPlayers("endGrab");
     }
     endRound() {
-        if (this.roleCount != this.players.length || this.gameStatus != 2)
-            throw new Error("invalid endRound");
         this.gameStatus = 5;
         let banker = this.getBanker();
         let idlers = this.getIdlers();
@@ -235,12 +233,16 @@ class Room {
             }
         });
         this.broadcastToPlayers("endRound");
+
+        let readyPlayers = this.getReadyPlayers();
         setTimeout(() => {
             this.roleCount = 0;
             this.gameStatus = 0;
-            this.players.map((player) => {
+            readyPlayers.map((player) => {
                 player.grab = -1;
                 player.doubles = -1;
+                player.role = "";
+                player.onRound = false;
             });
             this.startRound();
         }, 10000);
