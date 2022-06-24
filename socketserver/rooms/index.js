@@ -104,8 +104,28 @@ class Room {
     }
     leaveRoom(userSocket) {
         let playerIndex = this.getPlayerIndex(userSocket);
+
+        if (this.gameStatus == 1) { }
+        else if (this.gameStatus === 2) {
+            let playerIndex = this.getPlayerIndex(userSocket);
+            let player = this.players[playerIndex];
+            if (player.role = "banker") {
+                this.broadcastToPlayers("banker out");
+                setTimeout(() => {
+                    this.roleCount = 0;
+                    this.gameStatus = 0;
+                    readyPlayers.map((player) => {
+                        player.grab = -1;
+                        player.doubles = -1;
+                        player.role = "";
+                        player.onRound = false;
+                    });
+                    this.startRound();
+                }, 10000);
+            }
+        }
         this.players.splice(playerIndex, 1);
-        this.roleCount++;
+        this.nextRoll();
     }
 
     // game role
@@ -367,8 +387,8 @@ const roomManager = (socket, io) => {
         let room = global.rooms[roomIndex];
 
         // remove from room
-        global.users[socket.id].roomId = null;
         room.leaveRoom(socket);
+        global.users[socket.id].roomId = null;
 
         // delete room that no one in it
         if (room.players.length == 0) {
