@@ -74,10 +74,20 @@ const userMiddleware = async (socketId) => {
     }
     const Result = await UserController.findUser({
         param: global.users[socketId].username,
-        flag: 2,
+        flag: 1,
     });
     global.users[socketId] = Result;
-    return global.users[socketId];
+};
+
+const updateBalance = async (socketid) => {
+    if (!global.users[socketid]) {
+        return null;
+    }
+    const Result = await UserController.findUser({
+        param: global.users[socketid].username,
+        flag: 1,
+    });
+    global.users[socketid].balance = Result.balance;
 };
 
 const getUserData = (socketId) => {
@@ -93,4 +103,4 @@ const getUserData = (socketId) => {
         phonenumber: user.phonenumber,
     };
 };
-module.exports = { socketAuth, userMiddleware, getUserData };
+module.exports = { socketAuth, userMiddleware, getUserData, updateBalance };

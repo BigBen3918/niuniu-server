@@ -2,7 +2,7 @@
 // by: loganworld 	<https://github.com/loganworld>
 
 const { v4 } = require("uuid");
-const { getUserData } = require("../auth");
+const { getUserData, updateBalance } = require("../auth");
 const { delay } = require("../../utils");
 const { NiuNiu } = require("../niuniu");
 const { UserController } = require("../../controllers/userController");
@@ -105,25 +105,17 @@ class Room {
     leaveRoom(userSocket) {
         let playerIndex = this.getPlayerIndex(userSocket);
 
-        if (this.gameStatus == 1) { }
-        else if (this.gameStatus === 2) {
-            let playerIndex = this.getPlayerIndex(userSocket);
-            let player = this.players[playerIndex];
-            if (player.role = "banker") {
-                this.broadcastToPlayers("banker out");
-                setTimeout(() => {
-                    this.roleCount = 0;
-                    this.gameStatus = 0;
-                    readyPlayers.map((player) => {
-                        player.grab = -1;
-                        player.doubles = -1;
-                        player.role = "";
-                        player.onRound = false;
-                    });
-                    this.startRound();
-                }, 10000);
-            }
-        }
+        // if (this.gameStatus == 1) {
+        // } else if (this.gameStatus === 2) {
+        //     let playerIndex = this.getPlayerIndex(userSocket);
+        //     let player = this.players[playerIndex];
+        //     if ((player.role = "banker")) {
+        //         this.broadcastToPlayers("banker out");
+        //         setTimeout(() => {
+        //         }, 10000);
+        //     }
+        // }
+        this.startRound();
         this.players.splice(playerIndex, 1);
         this.nextRoll();
     }
@@ -147,10 +139,11 @@ class Room {
         if (this.gameStatus != 2) throw new Error("invalid role");
         let playerIndex = this.getPlayerIndex(userSocket);
         let player = this.players[playerIndex];
-        player.doubles = multiple;
+        this.nextRoll();
         if (player.doubles !== -1) {
             return;
         }
+        player.doubles = multiple;
         this.broadcastToPlayers("doubles", {
             player: getUserData(player.socket.id),
             multiple: multiple,
@@ -160,14 +153,18 @@ class Room {
     nextRoll() {
         let onPlayers = this.getOnPlayers();
         if (this.gameStatus == 1) {
-            let grabedPlayers = onPlayers.filter((player) => player.grab != -1);
+            let grabedPlayers = onPlayers.filter(
+                (player) => player.grab != -1 && player.onRound
+            );
             console.log("nextRoll : endGrab", this.roleCount);
             if (grabedPlayers.length >= this.getOnPlayers().length) {
                 // end grab
                 this.endGrab();
             }
         } else if (this.gameStatus === 2) {
-            let multipledPlayers = onPlayers.filter((player) => player.multiple != -1);
+            let multipledPlayers = onPlayers.filter(
+                (player) => player.doubles != -1 && player.onRound
+            );
             // if role is ended, round end
             if (multipledPlayers.length >= this.getOnPlayers().length) {
                 //end doubles
@@ -178,6 +175,8 @@ class Room {
 
     // main loop
     startRound() {
+        this.roleCount = 0;
+        this.gameStatus = 0;
         if (this.gameStatus != 0) return;
         let readyPlayers = this.getReadyPlayers();
         if (readyPlayers.length >= 2) {
@@ -204,8 +203,10 @@ class Room {
         let banker =
             candidators[Math.floor(Math.random() * candidators.length)];
         OnPlayers.map((player) => {
-            if (player.socket.id == banker.socket.id) { player.role = "banker"; player.multiple = 1 }
-            else player.role = "idler";
+            if (player.socket.id == banker.socket.id) {
+                player.role = "banker";
+                player.doubles = 1;
+            } else player.role = "idler";
         });
         this.gameStatus = 2;
         this.broadcastToPlayers("endGrab");
@@ -272,6 +273,7 @@ class Room {
     broadcastToPlayers(event, data = {}) {
         this.players.map((player) => {
             player.socket.emit(event, data);
+            updateBalance(player.socket.id);
         });
     }
 
