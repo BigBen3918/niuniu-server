@@ -156,7 +156,6 @@ class Room {
             let grabedPlayers = onPlayers.filter(
                 (player) => player.grab != -1 && player.onRound
             );
-            console.log("nextRoll : endGrab", this.roleCount);
             if (grabedPlayers.length >= this.getOnPlayers().length) {
                 // end grab
                 this.endGrab();
@@ -469,7 +468,7 @@ const roomManager = (socket, io) => {
             removeFromRooms();
             broadcastRooms();
         } catch (err) {
-            console.log("disconnect ======> ", err.message);
+            console.log("disconnect");
         }
     });
     socket.on("get rooms", () => {
