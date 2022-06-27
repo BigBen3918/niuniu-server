@@ -52,7 +52,7 @@ const NiuNiu = {
         let numSum = 0;
         let numSortedCards = [...sortedCards];
         numSortedCards = numSortedCards.map(card => Number(card) % 10);
-        numSortedCards = numSortedCards.sort();
+        numSortedCards.sort();
         numSortedCards.forEach((i) => {
             counts[i] = (counts[i] || 0) + 1;
             numSum += i
@@ -60,7 +60,7 @@ const NiuNiu = {
         counts = counts.filter((c) => {
             if (c) return c
         });
-        counts = counts.sort();
+        counts.sort();
 
         // activity card 
         let activityCards = [];
@@ -126,7 +126,7 @@ const NiuNiu = {
     getScore: (cards = []) => {
         if (cards.length != 5) throw new Error("invalid cards");
         let sortedCard = [...cards];
-        sortedCard = sortedCard.sort((card1, card2) => Number(card1) % 10 - Number(card2 % 10));
+        sortedCard.sort((card1, card2) => Number(card1) % 10 - Number(card2 % 10));
         let { type, activityCards } = NiuNiu.getType(sortedCard);
         return {
             type: type,
