@@ -217,6 +217,7 @@ class Room {
 
         let bankerScore = NiuNiu.getScore(banker.cards);
         banker.roundScore = bankerScore;
+        console.log(banker);
         idlers.map((idler) => {
             let idlerScore = NiuNiu.getScore(idler.cards);
             idler.roundScore = idlerScore;

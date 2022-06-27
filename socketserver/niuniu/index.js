@@ -1,5 +1,3 @@
-
-
 const NiuNiu = {
     scores: {
         //niuniu
