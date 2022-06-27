@@ -217,10 +217,11 @@ class Room {
 
         let bankerScore = NiuNiu.getScore(banker.cards);
         banker.roundScore = bankerScore;
-        console.log(banker);
+        console.log(banker.roundScore);
         idlers.map((idler) => {
             let idlerScore = NiuNiu.getScore(idler.cards);
             idler.roundScore = idlerScore;
+            console.log(idler.roundScore);
             if (idlerScore.score > bankerScore.score) {
                 // idler win
                 var realMoney =
@@ -266,7 +267,7 @@ class Room {
                 player.onRound = false;
             });
             this.startRound();
-        }, 10000);
+        }, 6000);
     }
 
     //emit
