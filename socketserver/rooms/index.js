@@ -38,7 +38,7 @@ const { UserController } = require("../../controllers/userController");
 class Room {
     constructor(
         creator,
-        cost,
+        cost = 0,
         setting = "test",
         name = "GBRoom",
         maxPlayer = 6
@@ -49,7 +49,7 @@ class Room {
         this.cost = cost;
         this.setting = setting;
         this.name = name ? name : "GBRoom";
-        this.maxPlayer = maxPlayer && maxPlayer <= 6 ? maxPlayer : 6;
+        this.maxPlayer = maxPlayer;
 
         this.players = []; // all players in room
         this.gameStatus = 0; // 0 is initial, 1 is ready, 2-4 is gaming, 5 is end
@@ -59,7 +59,10 @@ class Room {
 
     // join and leave actions
     enterRoom(userSocket) {
-        if (this.players.length > this.maxPlayer) {
+        if (global.users[userSocket.id].balance < this.cost) {
+            throw new Error("not enouth money");
+        }
+        if (this.players.length >= this.maxPlayer) {
             throw new Error("game is fullfilled");
         }
         if (
@@ -74,7 +77,6 @@ class Room {
             isReady: false,
             cards: [],
             role: "ready",
-            balance: 0,
             roundScore: {
                 type: "",
                 score: 0,
@@ -115,9 +117,9 @@ class Room {
         //         }, 10000);
         //     }
         // }
-        this.startRound();
+        // this.nextRoll();
         this.players.splice(playerIndex, 1);
-        this.nextRoll();
+        this.startRound();
     }
 
     // game role
@@ -217,11 +219,9 @@ class Room {
 
         let bankerScore = NiuNiu.getScore(banker.cards);
         banker.roundScore = bankerScore;
-        console.log(banker.roundScore);
         idlers.map((idler) => {
             let idlerScore = NiuNiu.getScore(idler.cards);
             idler.roundScore = idlerScore;
-            console.log(idler.roundScore);
             if (idlerScore.score > bankerScore.score) {
                 // idler win
                 var realMoney =
@@ -229,6 +229,10 @@ class Room {
                     idlerScore.multiple *
                     banker.grab *
                     idler.doubles;
+                UserController.updatebalance({
+                    username: global.users[idler.socket.id].username,
+                    amount: realMoney,
+                });
                 UserController.updatebalance({
                     username: global.users[idler.socket.id].username,
                     amount: realMoney,
@@ -244,6 +248,10 @@ class Room {
                     bankerScore.multiple *
                     banker.grab *
                     idler.doubles;
+                UserController.updatebalance({
+                    username: global.users[banker.socket.id].username,
+                    amount: realMoney,
+                });
                 UserController.updatebalance({
                     username: global.users[banker.socket.id].username,
                     amount: realMoney,
@@ -267,7 +275,7 @@ class Room {
                 player.onRound = false;
             });
             this.startRound();
-        }, 6000);
+        }, 10000);
     }
 
     //emit
@@ -353,6 +361,9 @@ const roomManager = (socket, io) => {
     // create, delete Room
     const createNewRoom = (data) => {
         const { cost, setting, name, maxPlayer } = data;
+        if (global.users[socket.id].balance < cost) {
+            throw new Error("not enouth money");
+        }
         var newRoom = new Room(socket, cost, setting, name, maxPlayer);
         global.rooms.push(newRoom);
         return newRoom;

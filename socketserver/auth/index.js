@@ -25,8 +25,12 @@ const socketAuth = (socket) => {
             global.users[socket.id] = userData;
 
             socket.emit("loginSuccess", {
+                id: userData.id,
                 username: userData.username,
                 phonenumber: userData.phonenumber,
+                balance: userData.balance,
+                score: userData.score,
+                image: userData.image,
             });
         } catch (err) {
             console.log("loginError ======> ", err.message);
@@ -67,6 +71,22 @@ const socketAuth = (socket) => {
             socket.emit("signUpError ======> ", getErrorCode(err.message));
         }
     });
+    socket.on("get user", () => {
+        try {
+            socket.emit("get user", {
+                id: global.users[socket.id].id,
+                username: global.users[socket.id].username,
+                phonenumber: global.users[socket.id].phonenumber,
+                password: global.users[socket.id].password,
+                balance: global.users[socket.id].balance,
+                score: global.users[socket.id].score,
+                image: global.users[socket.id].image,
+            });
+        } catch (err) {
+            console.log(err.message);
+            socket.emit("get user error =====> ", getErrorCode(err.message));
+        }
+    });
 };
 const userMiddleware = async (socketId) => {
     if (!global.users[socketId]) {
@@ -96,11 +116,12 @@ const getUserData = (socketId) => {
     }
     let user = global.users[socketId];
     return {
+        id: user.id,
         username: user.username,
         balance: user.balance,
-        id: user._id,
         image: user.image,
         phonenumber: user.phonenumber,
     };
 };
+
 module.exports = { socketAuth, userMiddleware, getUserData, updateBalance };
