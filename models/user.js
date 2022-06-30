@@ -18,6 +18,10 @@ const UserBasicSchema = new Schema({
 });
 
 const UserURISchema = new Schema({
+    id: {
+        type: Number,
+        required: true,
+    },
     username: {
         type: String,
         required: true,
@@ -34,8 +38,8 @@ const UserURISchema = new Schema({
         type: String,
     },
     image: {
-        type: String
-    }
+        type: String,
+    },
 });
 
 const UserSchema = new Schema();
