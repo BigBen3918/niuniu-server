@@ -51,14 +51,14 @@ const UserController = {
         var user = await UserSchema.findOne({
             username: username,
         });
-
+        let originBalance = user.balance;
         user.balance = Number(user.balance) + Number(amount);
         if (Number(user.balance) < 0) {
             user.balance = 0;
         }
         const userData = await user.save();
 
-        return userData;
+        return { updatedBalance: user.balance - originBalance, userData: userData };
     },
 };
 

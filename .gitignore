@@ -9,5 +9,3 @@ build
 dist
 yarn.lock
 screenshots
-
-.env

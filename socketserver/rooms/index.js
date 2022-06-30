@@ -192,6 +192,21 @@ class Room {
             this.gameStatus = 1;
             this.broadcastToPlayers("round start");
         }
+
+        setTimeout(() => {
+            //force endRound
+            let OnPlayers = this.getOnPlayers();
+            OnPlayers.map((player) => {
+                if (player.grab == -1) {
+                    player.grab = 0;
+                    this.broadcastToPlayers("grabBank", {
+                        player: getUserData(player.socket.id),
+                        multiple: 0,
+                    });
+                }
+            })
+            this.nextRoll();
+        }, [10000])
     }
     endGrab() {
         let OnPlayers = this.getOnPlayers();
@@ -210,49 +225,77 @@ class Room {
         });
         this.gameStatus = 2;
         this.broadcastToPlayers("endGrab");
+
+        setTimeout(() => {
+            //force endRound
+            let OnPlayers = this.getOnPlayers();
+            OnPlayers.map((player) => {
+                if (player.doubles == -1) {
+                    player.doubles = 1;
+                    this.broadcastToPlayers("doubles", {
+                        player: getUserData(player.socket.id),
+                        multiple: 1,
+                    });
+                }
+            })
+            this.nextRoll();
+        }, [10000])
     }
-    endRound() {
+    async endRound() {
         this.gameStatus = 5;
         let banker = this.getBanker();
         let idlers = this.getIdlers();
 
         let bankerScore = NiuNiu.getScore(banker.cards);
         banker.roundScore = bankerScore;
-        idlers.map((idler) => {
+        let promises = idlers.map(async (idler) => {
             let idlerScore = NiuNiu.getScore(idler.cards);
             idler.roundScore = idlerScore;
             if (idlerScore.score > bankerScore.score) {
                 // idler win
-                var realMoney =
+                var betAmount =
                     this.cost *
                     idlerScore.multiple *
                     banker.grab *
                     idler.doubles;
-                UserController.updatebalance({
-                    username: global.users[idler.socket.id].username,
-                    amount: realMoney,
-                });
-                UserController.updatebalance({
+                let { updatedBalance, userData } = await UserController.updatebalance({
                     username: global.users[banker.socket.id].username,
-                    amount: -realMoney,
+                    amount: -betAmount,
                 });
+                await UserController.updatebalance({
+                    username: global.users[idler.socket.id].username,
+                    amount: updatedBalance * -1,
+                });
+                if (userData.balance < this.cost) {
+                    //leave room
+                    this.leaveRoom(banker.socket)
+                }
             } else {
                 // bankerWin
-                var realMoney =
+                var betAmount =
                     this.cost *
                     bankerScore.multiple *
                     banker.grab *
                     idler.doubles;
-                UserController.updatebalance({
+                let { updatedBalance, userData } =
+                    await UserController.updatebalance({
+                        username: global.users[idler.socket.id].username,
+                        amount: -betAmount,
+                    });
+                await UserController.updatebalance({
                     username: global.users[banker.socket.id].username,
-                    amount: realMoney,
+                    amount: updatedBalance * -1,
                 });
-                UserController.updatebalance({
-                    username: global.users[idler.socket.id].username,
-                    amount: -realMoney,
-                });
+                if (userData.balance < this.cost) {
+                    //leave room
+                    this.leaveRoom(banker.socket)
+                }
             }
+
+            await updateBalance(idler.socket.id);
         });
+        await Promise.all(promises);
+        await updateBalance(banker.socket.id);
         this.broadcastToPlayers("endRound");
 
         let readyPlayers = this.getReadyPlayers();
