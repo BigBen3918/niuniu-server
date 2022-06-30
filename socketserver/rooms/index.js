@@ -175,22 +175,29 @@ class Room {
     }
 
     // main loop
-    startRound() {
+    async startRound() {
         this.roleCount = 0;
         this.gameStatus = 0;
         if (this.gameStatus != 0) return;
         let readyPlayers = this.getReadyPlayers();
         if (readyPlayers.length >= 2) {
             // start Round;
+            this.roleCount = 0;
+            this.gameStatus = 1;
             let randomCards = NiuNiu.getRandomCards(readyPlayers.length);
-            readyPlayers.forEach((player, index) => {
+            let promises = readyPlayers.map(async (player, index) => {
                 player.onRound = true;
                 player.cards = [...randomCards[index]];
                 player.grab = -1;
                 player.doubles = -1;
+                await UserController.updatebalance({
+                    username: global.users[player.socket.id].username,
+                    amount: this.cost * -1,
+                });
+                await updateBalance(player.socket.id);
             });
-            this.roleCount = 0;
-            this.gameStatus = 1;
+            await Promise.all(promises);
+            await UserController.updatePool({ amount: this.cost * readyPlayers.length });
             this.broadcastToPlayers("round start");
         }
 

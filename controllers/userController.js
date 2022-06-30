@@ -64,10 +64,10 @@ const UserController = {
         }
         return { updatedBalance: user.balance - originBalance, userData: userData };
     },
-    
+
     updatePool: async (props) => {
         const { amount } = props;
-        var pool = await PoolSchema.find();
+        var pool = await PoolSchema.findOne();
     },
 };
 
