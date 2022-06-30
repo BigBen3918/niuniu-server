@@ -66,12 +66,16 @@ const UserController = {
         if (Number(user.balance) < 0) {
             user.balance = 0;
         }
-        return { updatedBalance: user.balance - originBalance, userData: userData };
+        await user.save();
+        
+        return { updatedBalance: user.balance - originBalance, userData: user };
     },
 
     updatePool: async (props) => {
         const { amount } = props;
         var pool = await PoolSchema.findOne();
+        pool.balance = pool.balance + amount;
+        await pool.save();
     },
 };
 

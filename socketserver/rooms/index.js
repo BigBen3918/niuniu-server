@@ -54,6 +54,9 @@ class Room {
         this.players = []; // all players in room
         this.gameStatus = 0; // 0 is initial, 1 is ready, 2-4 is gaming, 5 is end
         this.roleCount = 0;
+        this.grabtimeout = null;
+        this.doubletimeout = null;
+        this.endtimeout = null;
         // this.gameInterval = setInterval(this.mainloop, [5]);
     }
 
@@ -105,6 +108,13 @@ class Room {
         }
     }
     leaveRoom(userSocket) {
+        try {
+            clearTimeout(this.grabtimeout);
+            clearTimeout(this.doubletimeout);
+            clearTimeout(this.endtimeout);
+        } catch (err) {
+            console.log(err);
+        }
         let playerIndex = this.getPlayerIndex(userSocket);
 
         // if (this.gameStatus == 1) {
@@ -167,7 +177,10 @@ class Room {
                 (player) => player.doubles != -1 && player.onRound
             );
             // if role is ended, round end
-            if (multipledPlayers.length >= this.getOnPlayers().length) {
+            if (
+                multipledPlayers.length >= this.getOnPlayers().length &&
+                this.gameStatus != 5
+            ) {
                 //end doubles
                 this.endRound();
             }
@@ -197,26 +210,34 @@ class Room {
                 await updateBalance(player.socket.id);
             });
             await Promise.all(promises);
-            await UserController.updatePool({ amount: this.cost * readyPlayers.length });
+            await UserController.updatePool({
+                amount: this.cost * readyPlayers.length,
+            });
             this.broadcastToPlayers("round start");
-        }
 
-        setTimeout(() => {
-            //force endRound
-            let OnPlayers = this.getOnPlayers();
-            OnPlayers.map((player) => {
-                if (player.grab == -1) {
-                    player.grab = 0;
-                    this.broadcastToPlayers("grabBank", {
-                        player: getUserData(player.socket.id),
-                        multiple: 0,
-                    });
-                }
-            })
-            this.nextRoll();
-        }, [10000])
+            this.grabtimeout = setTimeout(() => {
+                console.log("grabtimeout run");
+                // force endRound
+                let OnPlayers = this.getOnPlayers();
+                OnPlayers.map((player) => {
+                    if (player.grab == -1) {
+                        player.grab = 0;
+                        this.broadcastToPlayers("grabBank", {
+                            player: getUserData(player.socket.id),
+                            multiple: 0,
+                        });
+                    }
+                });
+                this.nextRoll();
+            }, 30000);
+        }
     }
     endGrab() {
+        if (this.grabtimeout !== null) {
+            console.log("end grab timeout");
+            clearTimeout(this.grabtimeout);
+            this.grabtimeout = null;
+        }
         let OnPlayers = this.getOnPlayers();
         let bump = OnPlayers.map((player) => player.grab);
         let highestGrab = Math.max(...bump);
@@ -234,7 +255,8 @@ class Room {
         this.gameStatus = 2;
         this.broadcastToPlayers("endGrab");
 
-        setTimeout(() => {
+        this.doubletimeout = setTimeout(() => {
+            console.log("doubletimeout run");
             //force endRound
             let OnPlayers = this.getOnPlayers();
             OnPlayers.map((player) => {
@@ -245,11 +267,16 @@ class Room {
                         multiple: 1,
                     });
                 }
-            })
+            });
             this.nextRoll();
-        }, [10000])
+        }, 30000);
     }
     async endRound() {
+        if (this.doubletimeout !== null) {
+            console.log("end round time out");
+            clearTimeout(this.doubletimeout);
+            this.doubletimeout = null;
+        }
         this.gameStatus = 5;
         let banker = this.getBanker();
         let idlers = this.getIdlers();
@@ -266,17 +293,18 @@ class Room {
                     idlerScore.multiple *
                     banker.grab *
                     idler.doubles;
-                let { updatedBalance, userData } = await UserController.updatebalance({
-                    username: global.users[banker.socket.id].username,
-                    amount: -betAmount,
-                });
+                let { updatedBalance, userData } =
+                    await UserController.updatebalance({
+                        username: global.users[banker.socket.id].username,
+                        amount: -betAmount,
+                    });
                 await UserController.updatebalance({
                     username: global.users[idler.socket.id].username,
                     amount: updatedBalance * -1,
                 });
                 if (userData.balance < this.cost) {
                     //leave room
-                    this.leaveRoom(banker.socket)
+                    this.leaveRoom(banker.socket);
                 }
             } else {
                 // bankerWin
@@ -296,7 +324,7 @@ class Room {
                 });
                 if (userData.balance < this.cost) {
                     //leave room
-                    this.leaveRoom(banker.socket)
+                    this.leaveRoom(banker.socket);
                 }
             }
 
