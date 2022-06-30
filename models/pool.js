@@ -7,6 +7,10 @@ const PoolSchema = new Schema({
         type: Number,
         required: false,
     },
+    latestUpdate: {
+        type: Number,
+        default: 0
+    }
 });
 
 module.exports = Pool = mongoose.model("pools", PoolSchema);

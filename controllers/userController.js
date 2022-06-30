@@ -52,6 +52,10 @@ const UserController = {
         }
         return user;
     },
+    getUsers: async (props) => {
+        let users = await UserSchema.find();
+        return users;
+    },
     updatebalance: async (props) => {
         const { username, amount } = props;
         var user = await UserSchema.findOne({

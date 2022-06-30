@@ -1,9 +1,7 @@
-const { getHashPassword, getErrorCode } = require("../utils");
-const { UserController } = require("../controllers/userController");
-
 const { socketAuth } = require("./auth");
 const { robby } = require("./robby");
 const { roomManager, gameManager } = require("./rooms");
+const { updateReward } = require("./updator")
 const listen = (io) => {
     global.users = {};
     global.lobby = [];
@@ -16,5 +14,6 @@ const listen = (io) => {
         roomManager(socket, io);
         gameManager(socket, io);
     })
+    updateReward();
 }
 module.exports = { listen }
