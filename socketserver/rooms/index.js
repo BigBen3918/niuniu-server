@@ -116,7 +116,6 @@ class Room {
             console.log(err);
         }
         let playerIndex = this.getPlayerIndex(userSocket);
-
         // if (this.gameStatus == 1) {
         // } else if (this.gameStatus === 2) {
         //     let playerIndex = this.getPlayerIndex(userSocket);
@@ -216,7 +215,6 @@ class Room {
             this.broadcastToPlayers("round start");
 
             this.grabtimeout = setTimeout(() => {
-                console.log("grabtimeout run");
                 // force endRound
                 let OnPlayers = this.getOnPlayers();
                 OnPlayers.map((player) => {
@@ -229,12 +227,14 @@ class Room {
                     }
                 });
                 this.nextRoll();
-            }, 30000);
+            }, 15000);
+        } else {
+            this.broadcastToPlayers("round start");
+            this.broadcastToPlayers("out user");
         }
     }
     endGrab() {
         if (this.grabtimeout !== null) {
-            console.log("end grab timeout");
             clearTimeout(this.grabtimeout);
             this.grabtimeout = null;
         }
@@ -269,11 +269,10 @@ class Room {
                 }
             });
             this.nextRoll();
-        }, 30000);
+        }, 13000);
     }
     async endRound() {
         if (this.doubletimeout !== null) {
-            console.log("end round time out");
             clearTimeout(this.doubletimeout);
             this.doubletimeout = null;
         }
@@ -351,8 +350,10 @@ class Room {
     //emit
     broadcastToPlayers(event, data = {}) {
         this.players.map((player) => {
-            player.socket.emit(event, data);
-            updateBalance(player.socket.id);
+            if (player.onRound) {
+                player.socket.emit(event, data);
+                updateBalance(player.socket.id);
+            }
         });
     }
 
@@ -401,6 +402,7 @@ class Room {
                         grab: player.grab,
                         doubles: player.doubles,
                         cards: player.cards,
+                        onRound: player.onRound,
                         roundScore: player.roundScore,
                     };
                 } else {
@@ -414,6 +416,7 @@ class Room {
                         grab: player.grab,
                         doubles: player.doubles,
                         cards: cards,
+                        onRound: player.onRound,
                         roundScore: player.roundScore,
                     };
                 }
@@ -609,7 +612,7 @@ const gameManager = (socket, io) => {
         try {
             const { multiple } = data;
             if ([1, 2, 3, 4].indexOf(multiple) == -1) {
-                throw error("invalid grab");
+                throw new Error("invalid double");
             }
             let room = getCRoom();
             room.doubles(socket, multiple);
@@ -617,6 +620,21 @@ const gameManager = (socket, io) => {
             console.log("ready on ======> ", err.message);
         }
     });
+
+    setInterval(() => {
+        try {
+            var currentTime = new Date().getTime();
+            io.sockets.emit("get pool", {
+                balance: global.poolbalance,
+                time:
+                    global.latestTime +
+                    12 * 3600 -
+                    Math.floor(currentTime / 1000),
+            });
+        } catch (err) {
+            console.log(err);
+        }
+    }, 1000);
 };
 
 module.exports = { roomManager, gameManager };

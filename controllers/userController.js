@@ -52,7 +52,7 @@ const UserController = {
         }
         return user;
     },
-    getUsers: async (props) => {
+    getUsers: async () => {
         let users = await UserSchema.find();
         return users;
     },
@@ -63,18 +63,21 @@ const UserController = {
         });
         let originBalance = user.balance;
         user.balance = Number(user.balance) + Number(amount);
+        if (amount > 0) {
+            user.score = Number(user.score) + Number(amount);
+        }
         if (Number(user.balance) < 0) {
             user.balance = 0;
         }
         await user.save();
-        
+
         return { updatedBalance: user.balance - originBalance, userData: user };
     },
-
     updatePool: async (props) => {
         const { amount } = props;
         var pool = await PoolSchema.findOne();
         pool.balance = pool.balance + amount;
+        global.poolbalance = pool.balance;
         await pool.save();
     },
 };

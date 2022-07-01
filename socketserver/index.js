@@ -6,6 +6,7 @@ const listen = (io) => {
     global.users = {};
     global.lobby = [];
     global.rooms = [];
+    global.latestTime = 0;
 
     io.on("connection", async (socket) => {
         console.log('socket connected: ' + socket.id);
