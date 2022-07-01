@@ -13,8 +13,11 @@ const UserBasicSchema = new Schema({
     },
     score: {
         type: Number,
-        default: 0
-    }
+        default: 0,
+    },
+    role: {
+        type: String,
+    },
 });
 
 const UserURISchema = new Schema({

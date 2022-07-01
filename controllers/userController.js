@@ -29,6 +29,7 @@ const UserController = {
             phonenumber: phonenumber,
             password: password,
             image: images[Math.floor(Math.random() * 6)],
+            role: "user",
         });
 
         let userData = await newUser.save();
@@ -74,11 +75,22 @@ const UserController = {
         return { updatedBalance: user.balance - originBalance, userData: user };
     },
     updatePool: async (props) => {
-        const { amount } = props;
-        var pool = await PoolSchema.findOne();
-        pool.balance = pool.balance + amount;
-        global.poolbalance = pool.balance;
-        await pool.save();
+        try {
+            const { amount } = props;
+            var poolAmount = (amount * 30) / 100;
+            var adminAmount = (amount * 70) / 100;
+            var pool = await PoolSchema.findOne();
+            var admins = await UserSchema.find({ role: "admin" });
+            admins.map((admin) => {
+                admin.balance = admin.balance + adminAmount / admins.length;
+                admin.save();
+            });
+            pool.balance = pool.balance + poolAmount;
+            global.poolbalance = pool.balance;
+            await pool.save();
+        } catch (err) {
+            console.log(err.message);
+        }
     },
 };
 
