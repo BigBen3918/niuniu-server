@@ -57,6 +57,8 @@ class Room {
         this.grabtimeout = null;
         this.doubletimeout = null;
         this.endtimeout = null;
+        this.roomNumber = Math.floor(Math.random() * 999999 + 300000);
+
         // this.gameInterval = setInterval(this.mainloop, [5]);
     }
 
@@ -230,7 +232,6 @@ class Room {
             }, 15000);
         } else {
             this.broadcastToPlayers("round start");
-            this.broadcastToPlayers("out user");
         }
     }
     endGrab() {
@@ -385,6 +386,7 @@ class Room {
         return {
             id: this.id,
             creator: getUserData(this.creator.id),
+            roomNumber: this.roomNumber,
             cost: this.cost,
             setting: this.setting,
             name: this.name,

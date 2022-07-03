@@ -12,7 +12,7 @@ const updateReward = () => {
         }
         pool.latestUpdate = new Date().getTime();
         pool.save();
-        // poolcache();
+        poolcache();
     })();
     setInterval(() => {
         poolcache();
