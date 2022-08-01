@@ -1,0 +1,18 @@
+# dependencies
+node_modules
+# production
+logs/*.log
+dist
+files
+# misc
+.env
+.env.*
+config.json
+config-*.json
+public
+
+npm-debug.log*
+yarn.lock
+yarn-error.log*
+package-lock.json
+avatars/*.png
