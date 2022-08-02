@@ -14,9 +14,11 @@ import config from './config.json'
 import Socket from './utils/Socket'
 import { getSession, setSession } from './utils/Redis'
 import { /* md5, */ generateCode, now, validateEmail/* , validateUsername */ } from './utils/helper'
-import { DUsers, GAMERULE, GAMESTEP, getLastUID, JUDGETYPE, SchemaRound, setLastUID } from './Model'
+import { DPool, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
 
-// import * as mongodb from 'mongodb'
+/* import {Double} from 'mongodb' */
+// var Double = require("mongodb").Double;
+
 import AES from './utils/aes'
 import WebCrypto from './utils/WebCrypto'
 // import GameModel from './GameModel'
@@ -57,6 +59,7 @@ export interface UserType {
 	showManual:			boolean		// 亮牌模式， 若真, 搓牌模式，若否，亮牌模式
 	judge:				number		// 牌型
 	cardPower:			number
+	balanceChange?:		number
 	earns:				Array<[uid: number, value: number, multiple: number]>	// get from
 	loss:				Array<[uid: number, value: number, multiple: number]>	// send to
 	restCards:			number[]
@@ -99,7 +102,7 @@ export const setPoolAmount = (amount:number) => {
 	poolAmount = amount
 }
 const rooms = {} as {[id: number]: RoomType}
-let lastRoomId = 10000001;
+let lastRoomId = 100001;
 
 const clients = new Map<websocket.connection, ClientInfo>()
 //const clientById = {} as {[cookie: string]: websocket.connection}
@@ -123,8 +126,8 @@ const removeClient = (con: websocket.connection) => {
 	clients.delete(con);
 }
 
-const readAvatar = (uid: number) => {
-	const uri = __dirname+'/../avatars/' + uid + '.png'
+const readAvatar = (avatarId: number) => {
+	const uri = __dirname+'/../avatars/' + avatarId + '.png'
 	const avatar = fs.readFileSync(uri).toString('base64');
 	return avatar
 }
@@ -374,14 +377,15 @@ const method_list = {
 		const _id = await getLastUID() + Math.round(Math.random() * 10)
 		await setLastUID(_id)
 
+		const avatar = Math.floor(Math.random() * 44) + 1;
+
 		await DUsers.insertOne({
 			_id,
 			email,
 			alias,
 			password:			WebCrypto.hash(password),
 			balance:			0,
-			exp:				0,
-			avatar:				'',
+			avatar,
 			parent:				0,
 			lastRoom:			0,
 			lastLogged:			0,
@@ -403,12 +407,11 @@ const method_list = {
 		if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
 		if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
 		session.uid = user._id;
+		const avatar = readAvatar(user.avatar);
 		await setSession(cookie, session);
-		// const result = {
-		// 	uid:			user._id,
-		// 	lastLogin: 		user.lastLogged
-		// }
-		const result = [user.alias, user._id, user.balance, user.exp, user.avatar]
+		const poolUser = await DPool.findOne({_id: user._id});
+		const exp = poolUser===null ? 0 : poolUser.earns;
+		const result = [user.alias, user._id, user.balance, exp, avatar]
 		await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
 		updateClient(con, {uid: user._id, room:0, state: CLIENT_STATE.GAEM_SELECT});
 		return { result };
@@ -419,8 +422,6 @@ const method_list = {
 		if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
 		const user = await DUsers.findOne({email});
 		if (user===null) return {error: ERROR.LOGING_USER_INVALID};
-
-		// if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
 		if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
 		// session.uid = user._id;
 		// await setSession(cookie, session);
@@ -460,42 +461,43 @@ const method_list = {
 		// Find a room you have already joined.
 		const row = await DUsers.findOne({_id: uid});
 		if (row) {
-			if(row.balance < antes) return {error: ERROR.LACK_BALANCE}
+			const balance = Number(row.balance);
+			if(balance < antes) return {error: ERROR.LACK_BALANCE}
 			const alias = row.alias;
-			const avatar = readAvatar(uid);
-			const balance = row.balance
+			const avatar = readAvatar(row.avatar);
+			
 			lastRoomId = lastRoomId + Math.ceil(Math.random()*10);
 			const test = Object.keys(rooms)
 			const timestamp = now()
 			rooms[lastRoomId] = {
-			id: 				lastRoomId,
-			roundId:			0,
-			rule,
-			antes,
-			step:				GAMESTEP.Ready,// game step
-			bankerId:			-1,	// = player.id, if zero, no selected banker
-			playerList: 			[{
-				id:				uid,
-				alias,
-				avatar,
-				cardFilped:		false,
-				balance,			
-				cardList:		[],
-				robBanker:		-1,		// 任何人可以抢庄，按照1，2，3，4倍数抢。选择倍数最高的玩家成为庄家, if zero, never 抢庄
-				multiplier:		-1,		// affected by win bonus or loss, value in 1 ~ 4
-				showManual:		false,		// 亮牌模式， 若真, 搓牌模式，若否，亮牌模式
-				judge:			JUDGETYPE.undefined,	// 牌型
-				cardPower:		-1,
-				earns:			[],
-				loss:			[],
-				restCards:      [],
-				outBooking:		false,
-			},undefined,undefined,undefined,undefined,undefined],
-			spectatorList:      [],
-			updated:			timestamp,
-			created:			timestamp,
-			maxPlayer:			32,
-			gameRound:			{}
+				id: 				lastRoomId,
+				roundId:			0,
+				rule,
+				antes,
+				step:				GAMESTEP.Ready,// game step
+				bankerId:			-1,	// = player.id, if zero, no selected banker
+				playerList: 			[{
+					id:				uid,
+					alias,
+					avatar,
+					cardFilped:		false,
+					balance,			
+					cardList:		[],
+					robBanker:		-1,		// 任何人可以抢庄，按照1，2，3，4倍数抢。选择倍数最高的玩家成为庄家, if zero, never 抢庄
+					multiplier:		-1,		// affected by win bonus or loss, value in 1 ~ 4
+					showManual:		false,		// 亮牌模式， 若真, 搓牌模式，若否，亮牌模式
+					judge:			JUDGETYPE.undefined,	// 牌型
+					cardPower:		-1,
+					earns:			[],
+					loss:			[],
+					restCards:      [],
+					outBooking:		false,
+				},undefined,undefined,undefined,undefined,undefined],
+				spectatorList:      [],
+				updated:			timestamp,
+				created:			timestamp,
+				maxPlayer:			32,
+				gameRound:			{}
 			}
 			//const testClass = new GameRound({room:rooms[lastRoomId]})
 			//rooms[lastRoomId].gameRound = testClass;
@@ -515,8 +517,8 @@ const method_list = {
 		const row = await DUsers.findOne({_id: uid});
 		if (row) {
 			const alias = row.alias;
-			const avatar = readAvatar(uid);
-			const balance = row.balance
+			const avatar = readAvatar(row.avatar);
+			const balance = Number(row.balance)
 			lastRoomId = lastRoomId + Math.ceil(Math.random()*10);
 			const timestamp = now()
 			rooms[lastRoomId] = {
@@ -563,7 +565,7 @@ const method_list = {
 		roomId = parseInt(roomId.toString())
 		if (uid===undefined) return {error: 20100};
 		if (rooms[roomId]===undefined) return;
-		if (findPlayerById(uid, roomId)[1] != undefined) return;
+		if (findPlayerById(uid, roomId)[1] != undefined) return {error: 16};
 		updateClient(con, {room: roomId, state: CLIENT_STATE.GAME});
 		let g : Boolean
 		g = await addPlayer(uid, roomId);
@@ -571,7 +573,7 @@ const method_list = {
 		broadcastEnterRoomData(roomId)
 		await deleteRoom(-1)
 		SendLobbyData()
-		if(g) startRound(roomId)
+		if(g) await startRound(roomId)
 
 	},
 
@@ -590,7 +592,7 @@ const method_list = {
 		broadcastEnterRoomData(roomId)
 		await deleteRoom(-1)
 		SendLobbyData()
-		if(g) startRound(roomId)
+		if(g) await startRound(roomId)
 	},
 
 	"set-robBanker": async (con, cookie, session, ip, params)=>{
@@ -752,7 +754,7 @@ const decisionPlayType = async (roomId: number) => {
 			}else{
 				const row = await DUsers.findOne({ _id : player.id })
 				if(row){
-					if(row.balance < room.antes){
+					if(Number(row.balance) < room.antes){
 						moveToSpectator(player);
 						console.log(room)
 					}else{
@@ -779,15 +781,18 @@ const decisionPlayType = async (roomId: number) => {
 	
 }
 
-const startRound = (roomId:number) => {
-	const room = rooms[roomId]
-	const gameRound = new GameRound({room: room})
-	room.gameRound = gameRound
-}
-export const RestartRound = async (roomId:number) => {
+// const startRound = async (roomId:number) => {
+// 	const room = rooms[roomId];
+// 	room.roundId = await getLastRoundId() + 1;
+// 	await setLastRoundId(room.roundId);
+// 	const gameRound = new GameRound({room: room})
+// 	room.gameRound = gameRound
+// }
+export const startRound = async (roomId:number) => {
 	const room = rooms[roomId]
 	room.step = GAMESTEP.Ready
 	room.bankerId = -1
+	
 	room.updated = now()
 	delete room.gameRound
 	for(let i =0; i < 6; i++){
@@ -809,7 +814,12 @@ export const RestartRound = async (roomId:number) => {
 		await deleteRoom(-1)
 		SendLobbyData()
 		await deleteRoom(-1)
-		startRound(roomId)
+		const room = rooms[roomId];
+		room.roundId = await getLastRoundId() + 1;
+		await setLastRoundId(room.roundId);
+		const gameRound = new GameRound({room: room})
+		room.gameRound = gameRound
+		//await startRound(roomId)
 	}
 }
 const broadcastEnterRoomData = (roomId:number) =>{
@@ -852,36 +862,36 @@ const SendEnterRoomData = (id:number, roomId:number, position:number) => {
 	sendToClients([id], "enter-room-data", {result:enterRoomData})
 }
 
-const createRoom = (rule:number, antes:number) => {
-	lastRoomId = lastRoomId + Math.ceil(Math.random()*10);
-	const timestamp = now()
-	let roomId = lastRoomId
-	rooms[lastRoomId] = {
-		id: 				roomId,
-		roundId:			0,
-		rule,
-		antes,
-		step:				GAMESTEP.Created,// game step
-		bankerId:			0,	// = player.id, if zero, no selected banker
-		playerList: 		[undefined, undefined, undefined, undefined, undefined, undefined],
-		spectatorList:		[],
-		updated:			timestamp,
-		created:			timestamp,
-		maxPlayer:          30,
-		gameRound:			{}
-	}
-	// setTimeout(function(){
-	// 	decisionPlayType(roomId)
-	// }, 2)
-}
+// const createRoom = (rule:number, antes:number) => {
+// 	lastRoomId = lastRoomId + Math.ceil(Math.random()*10);
+// 	const timestamp = now()
+// 	let roomId = lastRoomId
+// 	rooms[lastRoomId] = {
+// 		id: 				roomId,
+// 		roundId:			0,
+// 		rule,
+// 		antes,
+// 		step:				GAMESTEP.Created,// game step
+// 		bankerId:			0,	// = player.id, if zero, no selected banker
+// 		playerList: 		[undefined, undefined, undefined, undefined, undefined, undefined],
+// 		spectatorList:		[],
+// 		updated:			timestamp,
+// 		created:			timestamp,
+// 		maxPlayer:          30,
+// 		gameRound:			{}
+// 	}
+// 	// setTimeout(function(){
+// 	// 	decisionPlayType(roomId)
+// 	// }, 2)
+// }
 
 const addPlayer = async ( uid : number, roomId : number ) => {
 	const room = rooms[roomId]
 	const row = await DUsers.findOne({_id: uid});
 	if(row){
 		const alias = row.alias
-		const avatar = readAvatar(uid)
-		const balance = row.balance
+		const avatar = readAvatar(row.avatar)
+		const balance = Number(row.balance)
 		room.spectatorList.push({
 			id:				uid,
 			alias,
@@ -919,23 +929,23 @@ export const deleteRoom = async ( id:number ) => {
 }
 
 
-const deletPlayer = ( uid:number, roomId:number) => {
-	const room = rooms[roomId]
-	for(const player of room.playerList){
-		if(room.step == GAMESTEP.Created || GAMESTEP.Ready || player.id == uid){
-			room.playerList.splice(room.playerList.indexOf(player), 1)
-			decisionPlayType(roomId);
-			return true
-		}
-	}
-	for(const spectator of room.spectatorList){
-		if(room.step == GAMESTEP.Created || GAMESTEP.Ready || spectator.id == uid){
-			room.spectatorList.splice(room.spectatorList.indexOf(spectator), 1)
-			return true
-		}
-	}
-	return false
-}
+// const deletPlayer = ( uid:number, roomId:number) => {
+// 	const room = rooms[roomId]
+// 	for(const player of room.playerList){
+// 		if(room.step == GAMESTEP.Created || GAMESTEP.Ready || player.id == uid){
+// 			room.playerList.splice(room.playerList.indexOf(player), 1)
+// 			decisionPlayType(roomId);
+// 			return true
+// 		}
+// 	}
+// 	for(const spectator of room.spectatorList){
+// 		if(room.step == GAMESTEP.Created || GAMESTEP.Ready || spectator.id == uid){
+// 			room.spectatorList.splice(room.spectatorList.indexOf(spectator), 1)
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 const getLobbyPageSummary = (page : number) =>{
 	//6 rooms per page(from  0 page)

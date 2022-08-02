@@ -4,6 +4,7 @@ import setlog from './setlog'
 const client = new mongodb.MongoClient('mongodb://localhost:27017')
 const db = client.db(config.database)
 
+
 export enum JUDGETYPE {
 	undefined = -1,
 	None,		// 无牛			牌型：五张牌中，任意3张牌的点数之和都不为10的整数倍
@@ -79,8 +80,8 @@ export interface SchemaUser {
 	alias:				string
 	password:			string
 	balance:			number
-	exp:				number
-	avatar:				string
+	/* exp:				number */
+	avatar:				number
 	parent:				number
 	lastRoom:			number
 	lastLogged:			number
@@ -191,7 +192,7 @@ const open = async () => {
 		
 		// DRounds.createIndex({id: 1}, {unique: true, name: 'rnd_id'})
 		
-		DPool.createIndex({uid: 1}, {unique: true, name: 'pol_id'})
+		// DPool.createIndex({uid: 1}, {unique: true, name: 'pol_id'})
 		
 		DPoolLogs.createIndex({uid: 1}, {unique: false, name: 'plog_id'})
 	} catch (error) {
@@ -210,8 +211,8 @@ const close = async () => {
 
 export const getLastUID = async (): Promise<number> => {
 	const row = await DConfig.findOne({id: 1})
-	if (row===null) return 10000001
-	return row.uid || 10000001
+	if (row===null) return 100001
+	return row.uid || 100001
 }
 
 export const setLastUID = async (uid: number): Promise<boolean> => {
@@ -221,8 +222,8 @@ export const setLastUID = async (uid: number): Promise<boolean> => {
 
 export const getLastRoomId = async (): Promise<number> => {
 	const row = await DConfig.findOne({id: 1})
-	if (row===null) return 10000001
-	return row.roomId || 10000001
+	if (row===null) return 100001
+	return row.roomId || 100001
 }
 
 export const setLastRoomId = async (roomId: number): Promise<boolean> => {
@@ -232,8 +233,8 @@ export const setLastRoomId = async (roomId: number): Promise<boolean> => {
 
 export const getLastRoundId = async (): Promise<number> => {
 	const row = await DConfig.findOne({id: 1})
-	if (row===null) return 10000001
-	return row.roundId || 10000001
+	if (row===null) return 100001
+	return row.roundId || 100001
 }
 
 export const setLastRoundId = async (roundId: number): Promise<boolean> => {
