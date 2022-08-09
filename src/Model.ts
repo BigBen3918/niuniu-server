@@ -158,7 +158,15 @@ export interface SchemaPoolLogs {
 
 export interface SchemaSysMsg {
 	uid:				number
-	contents:			number
+	contents:			string
+	updated:			number	// 读取时间
+	created:			number	// 发送时间
+}
+
+export interface SchemaMsg {
+	uid:				number
+	contents:			string
+	isRev:				boolean // received from support
 	updated:			number	// 读取时间
 	created:			number	// 发送时间
 }
@@ -171,6 +179,7 @@ export const DRounds = 		db.collection<SchemaRound>('rounds')
 export const DPool = 		db.collection<SchemaPool>('pool')
 export const DPoolLogs = 	db.collection<SchemaPoolLogs>('poollogs')
 export const DSysMsg =		db.collection<SchemaSysMsg>('sysmsgs')
+export const DMsg =			db.collection<SchemaMsg>('msgs')
 
 const open = async () => {
 	try {

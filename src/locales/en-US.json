@@ -13,6 +13,10 @@
 	
 	"error.20200": "not found specified room number",
 	
+	"error.20300": "指定用户不存在",
+	"error.20301": "余额不够",
+	
+	
 	"error.32700": "Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
 	"error.32600":	"The JSON sent is not a valid Request object.",
 	"error.32601":	"The method does not exist / is not available.",

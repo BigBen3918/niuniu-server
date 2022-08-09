@@ -14,7 +14,7 @@ import config from './config.json'
 import Socket from './utils/Socket'
 import { getSession, setSession } from './utils/Redis'
 import { /* md5, */ generateCode, now, validateEmail/* , validateUsername */ } from './utils/helper'
-import { DPool, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
+import { DMsg, DPool, DSysMsg, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
 
 /* import {Double} from 'mongodb' */
 // var Double = require("mongodb").Double;
@@ -668,16 +668,107 @@ const method_list = {
 		// sendToClients([], "game_setMutiplier", [String(uid)]);
 		// return { result }
 	},
+	
+	"get-exps": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const rows = await DPool.find({}).sort({earns: -1}).limit(10).toArray()
+		
+		/// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+		
+		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
+		// sendToClients([], "game_setMutiplier", [String(uid)]);
+		// return { result }
+	},
+	"send-coin": async (con, cookie, session, ip, params)=>{
+		let [ userid, amount ] = params as [userid: string, amount: string];
+		const uid = session.uid;
+		const otherId = Number(userid);
+		const quantity = Number(amount);
+		
+		if (uid===undefined) return {error: 20100};
 
+		const other = await DUsers.findOne({_id: otherId});
+		if (other===null) return {error: 20300}
+		const user = await DUsers.findOne({_id: uid});
+		if (user.balance < quantity) return {error: 20301}; // 余额不够  no enough balance
+		await DUsers.bulkWrite([
+			{
+				updateOne: {
+					filter: {_id: otherId},
+					update: {
+						$inc: {balance: quantity}
+					}
+				}
+			},
+			{
+				updateOne: {
+					filter: {_id: otherId},
+					update: {
+						$inc: {balance: -quantity}
+					}
+				}
+			}
+		]);
+		await DSysMsg.insertOne({
+			uid:				otherId,
+			contents:			`您收到了 ${quantity}个金币从${user.alias}。`,
+			updated:			0,	// 读取时间
+			created:			now()	// 发送时间
+		});
+		// update all clients
+
+		// return { result }
+	},
+	"get-sysmsg": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const rows = await DSysMsg.find({uid, updated: 0}).sort({created: 1}).toArray();
+		await DSysMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
+		
+		/// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+		
+		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
+		// sendToClients([], "game_setMutiplier", [String(uid)]);
+		// return { result }
+	},
+	"send-msg": async (con, cookie, session, ip, params)=>{
+		let [ contents ] = params as [message: string]
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		await DMsg.insertOne({
+			uid:				uid,
+			contents,
+			isRev:				false, // received from support
+			updated:			0,	// 读取时间
+			created:			now()	// 发送时间
+		})
+		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+		// const result = await GameModel.setMultiplier(roomId, uid, multiplier)
+		// sendToClients([], "game_setMutiplier", [String(uid)]);
+		return { result: false };
+	},
+
+	"get-msg": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const rows = await DMsg.find({uid, updated: 0}).sort({created: 1}).toArray()
+		await DMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
+		
+		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+
+		return { result: false };
+	},
 } as {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
 }
 
 const admin_method_list = {
-	"test": async (cookie, session, ip, params)=>{
+	"test": async (cookie, session, ip, params) => {
 		const result = {
+
 		}
-		return { result }
+		return { result };
 	},
 } as {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<string|number|boolean>)=>Promise<ServerResponse>
