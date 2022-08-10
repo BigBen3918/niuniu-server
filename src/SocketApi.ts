@@ -14,7 +14,7 @@ import config from './config.json'
 import Socket from './utils/Socket'
 import { getSession, setSession } from './utils/Redis'
 import { /* md5, */ generateCode, now, validateEmail/* , validateUsername */ } from './utils/helper'
-import { DMsg, DPool, DSysMsg, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
+import { DMsg, DPool, DSysMsg, DSysNotice, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, getSysNotice, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
 
 /* import {Double} from 'mongodb' */
 // var Double = require("mongodb").Double;
@@ -411,8 +411,12 @@ const method_list = {
 		await setSession(cookie, session);
 		const poolUser = await DPool.findOne({_id: user._id});
 		const exp = poolUser===null ? 0 : poolUser.earns;
-		const result = [user.alias, user._id, user.balance, exp, avatar]
+		const notice = await getSysNotice();
+
+		const result = [user.alias, user._id, user.balance, exp, avatar, notice]
 		await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
+
+		
 		updateClient(con, {uid: user._id, room:0, state: CLIENT_STATE.GAEM_SELECT});
 		return { result };
 	},
@@ -908,8 +912,9 @@ export const startRound = async (roomId:number) => {
 		const room = rooms[roomId];
 		room.roundId = await getLastRoundId() + 1;
 		await setLastRoundId(room.roundId);
-		const gameRound = new GameRound({room: room})
-		room.gameRound = gameRound
+		const gameRound = new GameRound();
+		gameRound.initialize({room: room});
+		room.gameRound = gameRound;
 		//await startRound(roomId)
 	}
 }

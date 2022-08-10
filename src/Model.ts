@@ -17,15 +17,23 @@ export enum JUDGETYPE {
 	Cattle_7,	// 牛7
 	Cattle_8,
 	Cattle_9,	// 牛8
-	Double,		// 牛牛  		牌型：5张牌中有3张牌的点数之和为10的整数倍，并且，另外2张牌的点数之和为10的整数倍
-	Gold,		// 金牌牛		5张牌中有3张一样
-	GoldDouble,	// 金牌牛牛		5张牌中有3张一样，且两张之和为10
+	Double,		// 10 牛牛  		牌型：5张牌中有3张牌的点数之和为10的整数倍，并且，另外2张牌的点数之和为10的整数倍
+	Gold_1,		// 11 金牌牛		5张牌中有3张一样
+	Gold_2,		// 11 金牌牛		5张牌中有3张一样
+	Gold_3,		// 11 金牌牛		5张牌中有3张一样
+	Gold_4,		// 11 金牌牛		5张牌中有3张一样
+	Gold_5,		// 11 金牌牛		5张牌中有3张一样
+	Gold_6,		// 11 金牌牛		5张牌中有3张一样
+	Gold_7,		// 11 金牌牛		5张牌中有3张一样
+	Gold_8,		// 11 金牌牛		5张牌中有3张一样
+	Gold_9,		// 11 金牌牛		5张牌中有3张一样
+	GoldDouble,	// 12 金牌牛牛		5张牌中有3张一样，且两张之和为10
 	
-	Sequence,	// 顺子			5张牌中的数字 为顺子（2，3，4，5，6）
-	Gourd,		// 葫芦牛		5张牌的牌型为 AABBB （3张一样的牌加2张一样的牌）
-	Ten,		// 十小			无花中5张牌的点数相加之和小于等于10
-	Forty,		// 四十			无花中5张牌的点数相加之和大于或者等于40
-	Bomb,		// 炸弹牛		5张牌中4张点数一样（ABBBB）
+	Sequence,	// 13 顺子			5张牌中的数字 为顺子（2，3，4，5，6）
+	Gourd,		// 14 葫芦牛		5张牌的牌型为 AABBB （3张一样的牌加2张一样的牌）
+	Ten,		// 15 十小			无花中5张牌的点数相加之和小于等于10
+	Forty,		// 16 四十			无花中5张牌的点数相加之和大于或者等于40
+	Bomb,		// 17 炸弹牛		5张牌中4张点数一样（ABBBB）
 }
 
 export enum GAMESTEP {
@@ -155,6 +163,10 @@ export interface SchemaPoolLogs {
 		rewards:		number
 	}>
 }
+export interface SchemaSysNotice {
+	_id:				number
+	contents:			string
+}
 
 export interface SchemaSysMsg {
 	uid:				number
@@ -171,6 +183,7 @@ export interface SchemaMsg {
 	created:			number	// 发送时间
 }
 
+
 export const DConfig = 		db.collection<SchemaConfig>('config')
 export const DAdmin = 		db.collection<SchemaUser>('admins')
 export const DUsers = 		db.collection<SchemaUser>('users')
@@ -178,6 +191,7 @@ export const DRooms = 		db.collection<SchemaRoom>('rooms')
 export const DRounds = 		db.collection<SchemaRound>('rounds')
 export const DPool = 		db.collection<SchemaPool>('pool')
 export const DPoolLogs = 	db.collection<SchemaPoolLogs>('poollogs')
+export const DSysNotice =	db.collection<SchemaSysNotice>('sysnotice')
 export const DSysMsg =		db.collection<SchemaSysMsg>('sysmsgs')
 export const DMsg =			db.collection<SchemaMsg>('msgs')
 
@@ -204,6 +218,8 @@ const open = async () => {
 		// DPool.createIndex({uid: 1}, {unique: true, name: 'pol_id'})
 		
 		DPoolLogs.createIndex({uid: 1}, {unique: false, name: 'plog_id'})
+
+		DSysNotice.updateOne({_id: 1}, {$set: {contents: '尊敬的玩家：充值先下载多聊！'}}, {upsert: true});
 	} catch (error) {
 		setlog('Connection to MongoDB failed', error)
 		process.exit()
@@ -248,6 +264,17 @@ export const getLastRoundId = async (): Promise<number> => {
 
 export const setLastRoundId = async (roundId: number): Promise<boolean> => {
 	const res = await DConfig.updateOne({id: 1}, {$set: {roundId}}, {upsert: true})
+	return res.modifiedCount + res.upsertedCount > 0
+}
+
+export const getSysNotice = async (): Promise<string> => {
+	const row = await DSysNotice.findOne({_id: 1})
+	if (row===null) return "";
+	return row.contents;
+}
+
+export const setSysNotice = async (contents: string): Promise<boolean> => {
+	const res = await DSysNotice.updateOne({_id: 1}, {$set: {contents}}, {upsert: true});
 	return res.modifiedCount + res.upsertedCount > 0
 }
 

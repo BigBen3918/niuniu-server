@@ -26,7 +26,7 @@ export class GameRound{
 	
 	//Object.assign([], myArray);
 
-	constructor(api: { room:RoomType }){
+	initialize(api: { room:RoomType }){
 		this.room = api.room
 		this.cards[0] = 0;
 		for(let i = 0; i < 36; i++){
@@ -336,6 +336,7 @@ export class GameRound{
 	}
 
 	async getJudge(cards:number[]){
+		//cards = [0,9,3,30,18]
 		if(cards.find(e=>e == -1))
 			return [JUDGETYPE.undefined, -1]
 		const tmp = {} as {[n: number]: number}
@@ -374,13 +375,30 @@ export class GameRound{
 		{ // 葫芦牛, 金牌牛牛, 金牌牛
 			if (dups===3) {
 				const cs = [] as number[];
-				for (let k in tmp) cs.push(Number(k));
-				if (cs.length===2) {
+				const keys = Object.keys(tmp)
+				keys.forEach(key => {
+					if(tmp[Number(key)] !== 3){
+						cs.push(Number(key))
+					}
+				});
+				
+				
+				if (cs.length===1) {
 					return [JUDGETYPE.Gourd, cardPower];
-				} else if (cs[1] + cs[2]===10) {
-					return [JUDGETYPE.GoldDouble, cardPower];
+				} else {
+					switch ((cs[0] + cs[1]) % 10) {
+					case 0: return [JUDGETYPE.GoldDouble, cardPower];
+					case 1: return [JUDGETYPE.Gold_1, cardPower];
+					case 2: return [JUDGETYPE.Gold_2, cardPower];
+					case 3: return [JUDGETYPE.Gold_3, cardPower];
+					case 4: return [JUDGETYPE.Gold_4, cardPower];
+					case 5: return [JUDGETYPE.Gold_5, cardPower];
+					case 6: return [JUDGETYPE.Gold_6, cardPower];
+					case 7: return [JUDGETYPE.Gold_7, cardPower];
+					case 8: return [JUDGETYPE.Gold_8, cardPower];
+					case 9: return [JUDGETYPE.Gold_9, cardPower];
+					}
 				}
-				return [JUDGETYPE.Gold, cardPower, 6];
 			}
 		}
 		{ // 顺子
@@ -699,7 +717,7 @@ export class GameRound{
 		if(judge > 0 && judge < 7) return 1; */
 		if(judge == JUDGETYPE.Cattle_7 || judge == JUDGETYPE.Cattle_8) return 2;
 		if(judge == JUDGETYPE.Cattle_9) return 3;
-		if(judge == JUDGETYPE.Double || judge == JUDGETYPE.Gold) return 4;
+		if(judge == JUDGETYPE.Double || (judge >= JUDGETYPE.Gold_1 && judge <= JUDGETYPE.Gold_9)) return 4;
 		if(judge == JUDGETYPE.GoldDouble || judge == JUDGETYPE.Sequence) return 5;
 		if(judge == JUDGETYPE.Gourd) return 6;
 		if(judge == JUDGETYPE.Forty || judge == JUDGETYPE.Ten) return 7
