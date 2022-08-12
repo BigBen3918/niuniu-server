@@ -31,7 +31,7 @@ import {GameRound} from './GameRound'
 const ERROR = require("./Const/ErrorType")
 
 
-export const rpcRouter = express.Router()
+export const clientRouter = express.Router()
 
 export enum CLIENT_STATE {
 	NONE,
@@ -132,7 +132,7 @@ const readAvatar = (avatarId: number) => {
 	return avatar
 }
 
-rpcRouter.post("/",async (req:express.Request, res:express.Response)=>{
+clientRouter.post("/",async (req:express.Request, res:express.Response)=>{
 	const { jsonrpc, method, params, id } = req.body as RpcRequestType
 	let response = {} as {error?:number, result?:any}
 	if (jsonrpc==='2.0' && Array.isArray(params)) {
@@ -167,7 +167,7 @@ rpcRouter.post("/",async (req:express.Request, res:express.Response)=>{
 export const Actions = {
 	onRequest(ip:string, origin:string, wss:string, cookie:string) {
 		try {
-			if (wss===config.apiKey && cookie) {
+			if ((wss===config.apiKey || wss===config.adminKey) && cookie) {
 				// const bytes = uuidParse(cookie)
 				// if (bytes) return true
 				if (config.debug) setlog(`client connected [${cookie}]`, '', true)
@@ -387,7 +387,6 @@ const method_list = {
 			balance:			0,
 			avatar,
 			parent:				0,
-			lastRoom:			0,
 			lastLogged:			0,
 			loginCount:			0,
 			active:				true,
@@ -767,16 +766,6 @@ const method_list = {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
 }
 
-const admin_method_list = {
-	"test": async (cookie, session, ip, params) => {
-		const result = {
-
-		}
-		return { result };
-	},
-} as {
-	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<string|number|boolean>)=>Promise<ServerResponse>
-}
 
 const initSocket = (server: any)=>{
 	Socket(server, Actions)
@@ -1103,4 +1092,41 @@ export const findPlayerById = (uid:number, roomId:number) => {
 	result.push(undefined)
 	return result
 }
+
+const admin_method_list = {
+	"login": async (con, cookie, session, ip, params)=>{
+		const [ email, password ] = params as [email: string, password: string];
+		if (!validateEmail(email)) return {error: 1002};
+		if (password.length<6 || password.length>32) return {error: 1009};
+		const user = await DUsers.findOne({email});
+		if (user===null) return {error: 1004};
+		if (user.password!==WebCrypto.hash(password)) return {error: 1006}
+		session.uid = user._id;
+		await setSession(cookie, session);
+		await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
+		return { result: user._id };
+	},
+	
+	"reset": async (con, cookie, session, ip, params)=>{
+		const [ email ] = params as [email: string];
+		if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
+		const user = await DUsers.findOne({email});
+		if (user===null) return {error: ERROR.LOGING_USER_INVALID};
+		if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
+		// session.uid = user._id;
+		// await setSession(cookie, session);
+		// // const result = {
+		// // 	uid:			user._id,
+		// // 	lastLogin: 		user.lastLogged
+		// // }
+		// const result = [user.alias, user._id, user.balance, user.exp, user.avatar]
+		// await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
+		// updateClient(con, {uid: user._id, room:0, state: CLIENT_STATE.GAEM_SELECT});
+		return { result: true };
+	},
+
+} as {
+	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
+}
+
 export default initSocket

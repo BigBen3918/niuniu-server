@@ -9,7 +9,7 @@ import formData from 'express-form-data'
 import setlog from './setlog'
 import Model from './Model'
 import config from './config.json'
-import socketServer, { rpcRouter } from './SocketApi'
+import clientApi, { clientRouter } from './ClientApi'
 import WebCrypto from './utils/WebCrypto'
 import AES from './utils/aes'
 
@@ -27,7 +27,7 @@ Model.open().then(async ()=>{
 
 		const app = express()
 		const server = http.createServer(app)
-        socketServer(server)
+        clientApi(server);
 		app.use(cors({
 			origin: function(origin, callback){
 				return callback(null, true)
@@ -42,7 +42,7 @@ Model.open().then(async ()=>{
 				autoClean: true
 			}
 			app.use(formData.parse(options));
-			app.use('/rpc', rpcRouter)
+			app.use('/rpc', clientRouter)
 		}
 		let time = +new Date()
 		await new Promise(resolve=>server.listen({ port: config.httpPort, host:'0.0.0.0' }, ()=>resolve(true)))

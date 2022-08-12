@@ -1,6 +1,6 @@
 
 import { DPool, DRounds, DUsers, GAMERULE, GAMESTEP, getLastUID, JUDGETYPE, SchemaPool, SchemaRound, SchemaUser, setLastUID } from './Model'
-import { UserType, CLIENT_STATE, RoomType, sendToClients, CommandType, deleteRoom, startRound, findPlayerById, setPoolAmount, getPool, sendToClientsWithStat} from './SocketApi'
+import { UserType, CLIENT_STATE, RoomType, sendToClients, CommandType, deleteRoom, startRound, findPlayerById, setPoolAmount, getPool, sendToClientsWithStat} from './ClientApi'
 import { now } from './utils/helper';
 const MAX_CARD = 5;
 

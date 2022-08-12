@@ -1,6 +1,7 @@
 import * as mongodb from 'mongodb'
 import config from './config.json'
 import setlog from './setlog'
+import { now } from './utils/helper'
 const client = new mongodb.MongoClient('mongodb://localhost:27017')
 const db = client.db(config.database)
 
@@ -57,30 +58,28 @@ export interface SchemaConfig {
 	roundId?:			number
 }
 
+// export interface SchemaAdmin {
+// 	_id:				number
+// 	email:				string
+// 	password:			string
+// 	balance:			number
+// 	lastLogged:			number
+// 	updated:			number
+// 	created:			number
+// }
 
-export interface SchemaAdmin {
-	_id:				number
-	email:				string
-	username:			string
-	password:			string
-	balance:			number
-	lastLogged:			number
-	updated:			number
-	created:			number
-}
-
-export interface SchemaAgent {
-	_id:				number
-	email:				string
-	username:			string
-	password:			string
-	balance:			number
-	ratio:				number
-	parents:			Array<{id: number, ratio: number}>
-	lastLogged:			number
-	updated:			number
-	created:			number
-}
+// export interface SchemaAgent {
+// 	_id:				number
+// 	email:				string
+// 	username:			string
+// 	password:			string
+// 	balance:			number
+// 	ratio:				number
+// 	parents:			Array<{id: number, ratio: number}>
+// 	lastLogged:			number
+// 	updated:			number
+// 	created:			number
+// }
 
 export interface SchemaUser {
 	_id:				number
@@ -91,7 +90,6 @@ export interface SchemaUser {
 	/* exp:				number */
 	avatar:				number
 	parent:				number
-	lastRoom:			number
 	lastLogged:			number
 	loginCount:			number
 	active:				boolean
@@ -185,7 +183,6 @@ export interface SchemaMsg {
 
 
 export const DConfig = 		db.collection<SchemaConfig>('config')
-export const DAdmin = 		db.collection<SchemaUser>('admins')
 export const DUsers = 		db.collection<SchemaUser>('users')
 export const DRooms = 		db.collection<SchemaRoom>('rooms')
 export const DRounds = 		db.collection<SchemaRound>('rounds')
@@ -205,7 +202,7 @@ const open = async () => {
 		// DConfig.createIndex({id: 1}, {unique: true, name: 'cnf_id'})
 
 		// DAdmin.createIndex({id: 1}, {unique: true, name: 'adm_id'})
-		DAdmin.createIndex({email: 1}, {unique: true, name: 'adm_email'})
+		/* DAdmin.createIndex({email: 1}, {unique: true, name: 'adm_email'}) */
 		// DAdmin.createIndex({username: 1}, {unique: true, name: 'adm_name'})
 
 		// DUsers.createIndex({id: 1}, {unique: true, name: 'usr_id'})
@@ -219,7 +216,23 @@ const open = async () => {
 		
 		DPoolLogs.createIndex({uid: 1}, {unique: false, name: 'plog_id'})
 
+		await DUsers.insertOne({
+			_id: 1,
+			email: 				'leopawel65@gmail.com', 
+			alias:				"admin",
+			password:			'8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+			balance:			0,
+			avatar:				0,
+			parent:				0,
+			lastLogged:			0,
+			loginCount:			0,
+			active:				true,
+			updated:			0,
+			created:			now()
+		});
+
 		DSysNotice.updateOne({_id: 1}, {$set: {contents: '尊敬的玩家：充值先下载多聊！'}}, {upsert: true});
+
 	} catch (error) {
 		setlog('Connection to MongoDB failed', error)
 		process.exit()
