@@ -1146,11 +1146,11 @@ const admin_method_list = {
 	},
 	
 	"reset": async (con, cookie, session, ip, params)=>{
-		const [ email ] = params as [email: string];
-		if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
-		const user = await DUsers.findOne({email});
-		if (user===null) return {error: ERROR.LOGING_USER_INVALID};
-		if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
+		// const [ email ] = params as [email: string];
+		// if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
+		// const user = await DUsers.findOne({email});
+		// if (user===null) return {error: ERROR.LOGING_USER_INVALID};
+		// if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
 		// session.uid = user._id;
 		// await setSession(cookie, session);
 		// // const result = {
