@@ -22,7 +22,8 @@ export class GameRound{
 	interval : any = {}
 	// bankerSelectTime, decideBanderTime, MultipleSelectTime, FilpCardTime
 	//processTimeOut : number[] = [10, 2, 7, 10] 
-	processTimeOut : number[] = [10, 2, 7, 6, 8]
+	//processTimeOut : number[] = [10, 2, 7, 6, 8]
+	processTimeOut : number[] = [3, 1, 1, 4, 5]
 	
 	//Object.assign([], myArray);
 
@@ -60,7 +61,7 @@ export class GameRound{
 		const us = [] as number[];
 
 		for(let i = 0; i < 6; i ++){
-			if (this.room.playerList[i] == undefined) {
+			if (this.room.playerList[i] === undefined) {
 				this.playerList.push(-1);
 			} else {
 				this.playerList.push(1);
@@ -105,7 +106,6 @@ export class GameRound{
 			updated:			0,
 			created:			now()	// 游戏结束时间
 		})
-
 	}
 	
 	SendCurrentRoundData(uid:number){

@@ -14,7 +14,7 @@ import config from './config.json'
 import Socket from './utils/Socket'
 import { getSession, setSession } from './utils/Redis'
 import { /* md5, */ generateCode, now, validateEmail/* , validateUsername */ } from './utils/helper'
-import { DMsg, DPool, DSysMsg, DSysNotice, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, getSysNotice, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
+import { DMsg, DPool, DSendMoneyHistory, DSysNotice, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, getSysNotice, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
 
 /* import {Double} from 'mongodb' */
 // var Double = require("mongodb").Double;
@@ -28,7 +28,7 @@ import WebCrypto from './utils/WebCrypto'
 // import { getCommentRange, getModeForResolutionAtIndex } from 'typescript'
 import {GameRound} from './GameRound'
 // import { timeStamp } from 'console'
-const ERROR = require("./Const/ErrorType")
+
 
 
 export const rpcRouter = express.Router()
@@ -288,7 +288,8 @@ export type CommandType =
 	"end-round"				|
 	"filp-one-card"			|
 	"current-round-data"	|
-	"pool-data"
+	"pool-data"				|
+	"update-user-info"
 "none";
 
 /*
@@ -334,9 +335,9 @@ const method_list = {
 	// UI functions
 	"send-code": async (con, cookie, session, ip, params)=>{
 		const [ email ] = params as [email: string];
-		if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
+		if (!validateEmail(email)) return {error: 20001};
 		const user = await DUsers.findOne({email});
-		if (user!==null) return {error: ERROR.USER_INVALID};
+		if (user!==null) return {error: 10000};
 
 		// if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
 		//if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
@@ -361,16 +362,16 @@ const method_list = {
 
 	"register": async (con, cookie, session, ip, params)=>{
 		const [ alias, email, code, password ] = params as [ alias:string, email:string, code:string, password:string ]
-		if (session.verify===undefined) return {error: ERROR.UNKNOWN};
-		if (!validateEmail(email)) return {error: ERROR.REGISTER_EMAIL_INVALID};
-		if (password.length<6 || password.length>32) return {error: ERROR.REGISTER_PASSWORD_INVALID};
+		if (session.verify===undefined) return {error: 0};
+		if (!validateEmail(email)) return {error: 20001};
+		if (password.length<6 || password.length>32) return {error: 20004};
 		const verify = session.verify;
-		if (email!==verify.email) return {error: ERROR.UNKNOWN};
-		if (code!==verify.code) return {error: ERROR.VERIFY_EMAIL};
+		if (email!==verify.email) return {error: 0};
+		if (code!==verify.code) return {error: 20002};
 
 		const row = await DUsers.findOne({$or: [{email}]})
 		if (row!==null) {
-			return {error: ERROR.REGISTER_USER_INVALID}
+			return {error: 10000}
 			// return {error: 20035}
 		}
 		const timestamp = now()
@@ -394,39 +395,47 @@ const method_list = {
 			updated:			timestamp,
 			created:			timestamp,
 		});
+
+		await DPool.insertOne({
+			_id,
+			earns:              0,
+			updated:			timestamp,
+			created:			timestamp,
+		});
 		sendToClients(con, "register", {result:[0]});
 		return { result: true }
 	},
 
 	"login": async (con, cookie, session, ip, params)=>{
 		const [ email, password ] = params as [email: string, password: string];
-		if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
-		if (password.length<6 || password.length>32) return {error: ERROR.LOGING_PASSWORD_FORMAT_INVALID};
+		if (!validateEmail(email)) return {error: 20000};
+		if (password.length<6 || password.length>32) return {error: 20004};
 		const user = await DUsers.findOne({email});
-		if (user===null) return {error: ERROR.LOGING_USER_INVALID};
-		if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
-		if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
+		if (user===null) return {error: 20300};
+		if (user.password!==WebCrypto.hash(password)) return {error: 20005}
+		if (user.active===false) return { error: 20006};
 		session.uid = user._id;
-		const avatar = readAvatar(user.avatar);
+		SnedUserInfo(user._id)
+		//const avatar = readAvatar(user.avatar);
 		await setSession(cookie, session);
-		const poolUser = await DPool.findOne({_id: user._id});
-		const exp = poolUser===null ? 0 : poolUser.earns;
-		const notice = await getSysNotice();
+		//const poolUser = await DPool.findOne({_id: user._id});
+		//const exp = poolUser===null ? 0 : poolUser.earns;
+		//const notice = await getSysNotice();
 
-		const result = [user.alias, user._id, user.balance, exp, avatar, notice]
+		//const result = [user.alias, user._id, user.balance, exp, avatar, notice]
 		await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
 
 		
 		updateClient(con, {uid: user._id, room:0, state: CLIENT_STATE.GAEM_SELECT});
-		return { result };
+		return { result:[0] };
 	},
 	
 	"reset": async (con, cookie, session, ip, params)=>{
 		const [ email ] = params as [email: string];
-		if (!validateEmail(email)) return {error: ERROR.LOGIN_EMAIL_INVALID};
+		if (!validateEmail(email)) return {error: 20001};
 		const user = await DUsers.findOne({email});
-		if (user===null) return {error: ERROR.LOGING_USER_INVALID};
-		if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
+		if (user===null) return {error: 10000};
+		if (user.active===false) return { error: 20006};
 		// session.uid = user._id;
 		// await setSession(cookie, session);
 		// // const result = {
@@ -457,16 +466,16 @@ const method_list = {
 	"create-room": async (con, cookie, session, ip, params)=>{
 		let [ rule, antes ] = params as [rule: number, antes: number]
 		const uid = session.uid
-		if (uid===undefined) return {error: ERROR.USER_INVALID}
-		if(parseFloat(antes.toString()) === NaN) return {error: ERROR.DATA_FORMAT_INVALID}
+		if (uid===undefined) return {error: 10000}
+		if(parseFloat(antes.toString()) === NaN) return {error: 10001}
 		rule = parseInt(rule.toString())
 		antes = parseFloat(antes.toString())
-		if (rule!==0 || antes<0.5 || antes>20 || antes == NaN) return {error: ERROR.REQUEST_INVALID_COST}
+		if (rule!==0 || antes<0.5 || antes>20 || antes == NaN) return {error: 20400}
 		// Find a room you have already joined.
 		const row = await DUsers.findOne({_id: uid});
 		if (row) {
 			const balance = Number(row.balance);
-			if(balance < antes) return {error: ERROR.LACK_BALANCE}
+			if(balance < antes) return {error: 20401}
 			const alias = row.alias;
 			const avatar = readAvatar(row.avatar);
 			
@@ -569,7 +578,7 @@ const method_list = {
 		roomId = parseInt(roomId.toString())
 		if (uid===undefined) return {error: 20100};
 		if (rooms[roomId]===undefined) return;
-		if (findPlayerById(uid, roomId)[1] != undefined) return {error: 16};
+		if (findPlayerById(uid, roomId)[1] != undefined) return {error: 10000};
 		updateClient(con, {room: roomId, state: CLIENT_STATE.GAME});
 		let g : Boolean
 		g = await addPlayer(uid, roomId);
@@ -689,13 +698,13 @@ const method_list = {
 		const uid = session.uid;
 		const otherId = Number(userid);
 		const quantity = Number(amount);
-		
+		if(quantity === 0) return {error: 20401};
 		if (uid===undefined) return {error: 20100};
 
 		const other = await DUsers.findOne({_id: otherId});
 		if (other===null) return {error: 20300}
 		const user = await DUsers.findOne({_id: uid});
-		if (user.balance < quantity) return {error: 20301}; // 余额不够  no enough balance
+		if (user.balance < quantity) return {error: 20401}; // 余额不够  no enough balance
 		await DUsers.bulkWrite([
 			{
 				updateOne: {
@@ -707,29 +716,46 @@ const method_list = {
 			},
 			{
 				updateOne: {
-					filter: {_id: otherId},
+					filter: {_id: uid},
 					update: {
 						$inc: {balance: -quantity}
 					}
 				}
 			}
 		]);
-		await DSysMsg.insertOne({
-			uid:				otherId,
+		await DSendMoneyHistory.insertOne({
+			from_uid:				uid,
+			to_uid:                 otherId,
 			contents:			`您收到了 ${quantity}个金币从${user.alias}。`,
-			updated:			0,	// 读取时间
+			balance:               quantity,
+			from_updated:			0,	// 读取时间
+			to_updated:			0,	// 读取时间
 			created:			now()	// 发送时间
 		});
 		// update all clients
-
-		// return { result }
+		SnedUserInfo(uid)
+		return { result : [0] }
 	},
 	"get-sysmsg": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid;
 		if (uid===undefined) return {error: 20100};
-		const rows = await DSysMsg.find({uid, updated: 0}).sort({created: 1}).toArray();
-		await DSysMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
-		
+		const rows = await DSendMoneyHistory.find({$or:[{to_uid:uid, to_updated: 0},{from_uid:uid, from_updated: 0}]}).sort({created: 1}).toArray();
+		await DSendMoneyHistory.updateMany({to_uid:uid, to_updated: 0}, {$set: {to_updated: now()}});
+		await DSendMoneyHistory.updateMany({from_uid:uid, from_updated: 0}, {$set: {from_updated: now()}});
+		const result = []
+		result.push(rows.length)
+		rows.forEach(row => {
+			if(row.from_uid === uid){
+				result.push(row.to_uid)
+				result.push(0)
+			}else if(row.to_uid === uid){
+				result.push(row.from_uid)
+				result.push(1)
+			}
+			result.push(row.balance)
+			result.push(row.created)
+		});
+		return {result}
 		/// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 		
 		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
@@ -790,6 +816,18 @@ const SendLobbyData = () =>{
 			sendToClients(key, "enter-lobby", {result:getLobbyPageSummary(value.lobby)})
 		}
 	}
+}
+
+const  SnedUserInfo = async (uid:number) =>{
+	const user = await DUsers.findOne({_id: uid});
+	if (user===null) return {error: 20300};
+	const avatar = readAvatar(user.avatar);
+	const poolUser = await DPool.findOne({_id: uid});
+	const exp = poolUser===null ? 0 : poolUser.earns;
+	const notice = await getSysNotice();
+	const rows = await DSendMoneyHistory.find({to_uid:uid, updated: 0}).sort({created: 1}).toArray();
+	const result = [user.alias, user._id, user.balance, exp, avatar, rows.length, notice]
+	sendToClients([uid], "update-user-info", {result: result});
 }
 
 const clientById = (id : number) =>{

@@ -168,10 +168,13 @@ export interface SchemaSysNotice {
 	contents:			string
 }
 
-export interface SchemaSysMsg {
-	uid:				number
+export interface SchemaSendMoneyHistory {
+	from_uid:			number
+	to_uid:				number
 	contents:			string
-	updated:			number	// 读取时间
+	balance:            number
+	from_updated:		number
+	to_updated:         number	// 读取时间
 	created:			number	// 发送时间
 }
 
@@ -192,7 +195,7 @@ export const DRounds = 		db.collection<SchemaRound>('rounds')
 export const DPool = 		db.collection<SchemaPool>('pool')
 export const DPoolLogs = 	db.collection<SchemaPoolLogs>('poollogs')
 export const DSysNotice =	db.collection<SchemaSysNotice>('sysnotice')
-export const DSysMsg =		db.collection<SchemaSysMsg>('sysmsgs')
+export const DSendMoneyHistory =		db.collection<SchemaSendMoneyHistory>('sendmoneyhistory')
 export const DMsg =			db.collection<SchemaMsg>('msgs')
 
 const open = async () => {
