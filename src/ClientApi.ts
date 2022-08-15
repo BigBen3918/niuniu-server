@@ -14,7 +14,7 @@ import config from './config.json'
 import Socket from './utils/Socket'
 import { getSession, setSession } from './utils/Redis'
 import { /* md5, */ generateCode, now, validateEmail/* , validateUsername */ } from './utils/helper'
-import { DMsg, DPool, DSendMoneyHistory, DSysNotice, DUsers, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, getSysNotice, JUDGETYPE, SchemaRound, setLastRoomId, setLastRoundId, setLastUID } from './Model'
+import { DMsg, DPool, DSendMoneyHistory, DSysMsg, DSysNotice, DUsers, DWithdraws, GAMERULE, GAMESTEP, getLastRoundId, getLastUID, getPool, getSysNotice, JUDGETYPE, SchemaMsg, SchemaRound, SchemaUser, setLastRoomId, setLastRoundId, setLastUID, setPool } from './Model'
 
 /* import {Double} from 'mongodb' */
 // var Double = require("mongodb").Double;
@@ -27,9 +27,10 @@ import WebCrypto from './utils/WebCrypto'
 // import { userInfo } from 'os'
 // import { getCommentRange, getModeForResolutionAtIndex } from 'typescript'
 import {GameRound} from './GameRound'
+import { AnyBulkWriteOperation } from 'mongodb'
 // import { timeStamp } from 'console'
 
-
+const feeRate = 0.02;
 
 export const clientRouter = express.Router()
 
@@ -82,25 +83,57 @@ export interface RoomType {
 	
 }
 let poolAmount:number = 0;
-let poolLeftTime: number = 60 * 60 * 12 // 12hour
+// let poolLeftTime: number = 60 * 60 * 12 // 12hour
+
 setInterval(()=>{
 	checkPoolTime()
 }, 1000);
 
-const checkPoolTime = () =>{
-	poolLeftTime --;
-	sendToClientsWithStat(CLIENT_STATE.GAME, "pool-data", {result:[poolAmount, poolLeftTime]});
-	if(poolLeftTime < 0){
-		poolLeftTime = 60 * 60 * 12
+const checkPoolTime = async () =>{
+	// poolLeftTime --;
+	const timestamp = now() + 3600 * 8;
+
+	const poolPeriod = 3600 * 12;
+	const poolLeftTime = poolPeriod - timestamp % poolPeriod;
+	if (poolLeftTime<=1) {
+		await distributePool();
 	}
-}
-export const getPool = () => {
-	return [poolAmount, poolLeftTime]
+	sendToClientsWithStat(CLIENT_STATE.GAME, "pool-data", {result:[poolAmount, poolLeftTime]});
 }
 
-export const setPoolAmount = (amount:number) => {
-	poolAmount = amount
+const distributePool = async () => {
+	try {
+		const _poolAmount = poolAmount;
+		if (_poolAmount) {
+			const rows = await DPool.find({}).sort({earns: -1}).limit(10).toArray()
+			await DPool.deleteMany({});
+			await setPool(0);
+			poolAmount = 0;
+			let total = 0;
+			for (let i of rows) {
+				total += i.earns;
+			}
+			const users = [] as AnyBulkWriteOperation<SchemaUser>[];
+			for (let i of rows) {
+				const rewards = Math.round(poolAmount * i.earns * 10 / total) / 10;
+				if (rewards > 0) {
+					users.push({updateOne: {filter: {_id: i._id}, update: {$inc: {rewards}}}});
+				}
+			}
+			if (users.length) {
+				await DUsers.bulkWrite(users);
+			}
+		}
+	} catch (error) {
+		
+	}
 }
+
+export const addPoolAmount = async (amount:number) => {
+	poolAmount += amount;
+	await setPool(poolAmount);
+}
+
 const rooms = {} as {[id: number]: RoomType}
 let lastRoomId = 100001;
 
@@ -163,6 +196,13 @@ clientRouter.post("/",async (req:express.Request, res:express.Response)=>{
 	}
 	res.json({jsonrpc: "2.0", id, ...response})
 })
+
+
+const initSocket = async (server: any)=>{
+	Socket(server, Actions)
+	setlog("initialized socket server.")
+	poolAmount = await getPool();
+}
 
 export const Actions = {
 	onRequest(ip:string, origin:string, wss:string, cookie:string) {
@@ -386,6 +426,7 @@ const method_list = {
 			alias,
 			password:			WebCrypto.hash(password),
 			balance:			0,
+			rewards:			0,
 			avatar,
 			parent:				0,
 			lastLogged:			0,
@@ -414,7 +455,7 @@ const method_list = {
 		if (user.password!==WebCrypto.hash(password)) return {error: 20005}
 		if (user.active===false) return { error: 20006};
 		session.uid = user._id;
-		SnedUserInfo(user._id)
+		sendUserInfo(user._id, true)
 		//const avatar = readAvatar(user.avatar);
 		await setSession(cookie, session);
 		//const poolUser = await DPool.findOne({_id: user._id});
@@ -544,8 +585,8 @@ const method_list = {
 					id:				uid,
 					alias,
 					balance,
-					avatar,	
-					cardFilped:		false,		
+					avatar,
+					cardFilped:		false,
 					cardList:		[],
 					robBanker:		-1,		// 任何人可以抢庄，按照1，2，3，4倍数抢。选择倍数最高的玩家成为庄家, if zero, never 抢庄
 					multiplier:		-1,		// affected by win bonus or loss, value in 1 ~ 4
@@ -685,19 +726,27 @@ const method_list = {
 		const uid = session.uid;
 		if (uid===undefined) return {error: 20100};
 		const rows = await DPool.find({}).sort({earns: -1}).limit(10).toArray()
-		
-		/// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
-		
-		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
-		// return { result }
+		const rowUsers = await DUsers.find({_id: {$in: rows.map(i=>i._id)}}).toArray();
+		const result = [] as string[];
+		const users = {} as {[id: number]: {alias: string, avatar: number}}
+		for (let i of rowUsers) {
+			users[i._id] = {alias: i.alias, avatar: i.avatar || i._id};
+		}
+		result.push(String(rows.length));
+		for (let i of rows) {
+			result.push(String(i._id))
+			result.push(users[i._id].alias)
+			result.push(readAvatar(users[i._id].avatar))
+			result.push(String(i.earns));
+		}
+		return { result }
 	},
 	"send-coin": async (con, cookie, session, ip, params)=>{
 		let [ userid, amount ] = params as [userid: string, amount: string];
 		const uid = session.uid;
 		const otherId = Number(userid);
 		const quantity = Number(amount);
-		if(quantity === 0) return {error: 20401};
+		if(quantity === 0) return {error: 20402};
 		if (uid===undefined) return {error: 20100};
 
 		const other = await DUsers.findOne({_id: otherId});
@@ -725,22 +774,28 @@ const method_list = {
 		await DSendMoneyHistory.insertOne({
 			from_uid:				uid,
 			to_uid:                 otherId,
-			contents:			`您收到了 ${quantity}个金币从${user.alias}。`,
 			balance:               quantity,
 			from_updated:			0,	// 读取时间
 			to_updated:			0,	// 读取时间
 			created:			now()	// 发送时间
 		});
+		await DSysMsg.insertOne({
+			uid:				otherId,
+			contents:			`您收到了 ${quantity}个金币从${user.alias}。`,
+			updated:			0,	// 读取时间
+			created:			now()	// 发送时间
+		});
 		// update all clients
-		SnedUserInfo(uid)
+		sendUserInfo(uid, false)
 		return { result : [0] }
 	},
-	"get-sysmsg": async (con, cookie, session, ip, params)=>{
+
+	"get-moneylog": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid;
 		if (uid===undefined) return {error: 20100};
 		const rows = await DSendMoneyHistory.find({$or:[{to_uid:uid, to_updated: 0},{from_uid:uid, from_updated: 0}]}).sort({created: 1}).toArray();
-		await DSendMoneyHistory.updateMany({to_uid:uid, to_updated: 0}, {$set: {to_updated: now()}});
-		await DSendMoneyHistory.updateMany({from_uid:uid, from_updated: 0}, {$set: {from_updated: now()}});
+		//await DSendMoneyHistory.updateMany({to_uid:uid, to_updated: 0}, {$set: {to_updated: now()}});
+		//await DSendMoneyHistory.updateMany({from_uid:uid, from_updated: 0}, {$set: {from_updated: now()}});
 		const result = []
 		result.push(rows.length)
 		rows.forEach(row => {
@@ -755,12 +810,28 @@ const method_list = {
 			result.push(row.created)
 		});
 		return {result}
-		/// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
-		
-		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
-		// return { result }
 	},
+
+	"get-sysmsg": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const rows = await DSysMsg.find({uid, updated: 0}).sort({created: 1}).toArray();
+		const result = [];
+		const count = rows.length;
+		result.push(count);
+		if (count > 0) {
+			rows.forEach(row => {
+				result.push(row.uid);
+				result.push(row.contents);
+				result.push(row.created);
+			});
+			const updated = now();
+			await DSysMsg.updateMany({uid, updated: 0}, {$set: {updated}});
+		}
+		sendUserInfo(uid, false);
+		return {result};
+	},
+
 	"send-msg": async (con, cookie, session, ip, params)=>{
 		let [ contents ] = params as [message: string]
 		const uid = session.uid;
@@ -788,15 +859,112 @@ const method_list = {
 
 		return { result: false };
 	},
+	"get-downloadlink": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		// const rows = await DMsg.find({uid, updated: 0}).sort({created: 1}).toArray()
+		// await DMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
+		
+		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+		const result = []
+		result.push("https://niuniu.deamchain.com/niuniu_0.1.0.apk")
+		return {result};
+	},
+	"get-backendlink": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		// const rows = await DMsg.find({uid, updated: 0}).sort({created: 1}).toArray()
+		// await DMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
+		
+		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+		const result = []
+		result.push("https://niuniu.deamchain.com/client/login")
+		return {result};
+	},
+	"get-rewards": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const user = await DUsers.findOne({_id: uid});
+		const rewards = String(Math.floor((user.rewards || 0) * 10) / 10);
+		return {result: [rewards]};
+	},
+	"climb-rewards": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const user = await DUsers.findOne({_id: uid})
+		if (user.rewards) {
+			await DUsers.updateOne({
+				_id: uid
+			}, {
+				$set: {
+					rewards: 0
+				},
+				$inc: {
+					balance: user.rewards
+				}
+			})
+		}
+		sendUserInfo(uid, false)
+		return {result: true};
+	},
+	/* "get-payment": async (con, cookie, session, ip, params)=>{
+		let [ type ] = params as [type: "bank"|"alipay"];
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const w = await DWithdraws.findOne({$query: {uid, type}, $orderby: {$created : -1}});
+		if (w!==null) {
+			return {result: [type, w.bank, w.account, w.owner]};
+		}
+		return {result: []};
+	}, */
+	"set-withdraw": async (con, cookie, session, ip, params)=>{
+		const [ type, bank, account, owner, quantity ] = params as [type: "bank"|"alipay", bank: string, account: string, owner: string, quantity: string];
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const amount = Number(quantity);
+		const user = await DUsers.findOne({_id: uid})
+		const availableAmount = Math.floor(amount / 100) * 100;
+		if (availableAmount!==amount) return {error: 20523};
+		const fee = amount * feeRate;
+		if (user.balance < amount + fee) return {error: 20401};
+		await DUsers.updateOne({_id: uid}, {$inc: {balance: -(amount + fee)}});
+		await DWithdraws.insertOne({
+			uid,
+			type,
+			bank,
+			account,
+			owner,
+			amount,
+			fee,
+			status:		false,
+			updated:	0,
+			created:	now()
+		});
+		sendUserInfo(uid, false);
+		return {result: ["0"]};
+	},
+	"get-withdraw": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const rows = await DWithdraws.find({uid}).sort({created: -1}).limit(20).toArray();
+		//await DSendMoneyHistory.updateMany({to_uid:uid, to_updated: 0}, {$set: {to_updated: now()}});
+		//await DSendMoneyHistory.updateMany({from_uid:uid, from_updated: 0}, {$set: {from_updated: now()}});
+		const result = []
+		result.push(rows.length)
+		rows.forEach(row => {
+			result.push(row.type)
+			result.push(row.account)
+			result.push(row.amount)
+			/* result.push(row.status) */
+			result.push(row.updated)
+		});
+		return {result}
+	},
 } as {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
 }
 
 
-const initSocket = (server: any)=>{
-	Socket(server, Actions)
-	setlog("initialized socket server.")
-}
 
 const SendLobbyData = () =>{
 	const lobbyUser = {} as {con: websocket.connection, page: number}
@@ -807,15 +975,23 @@ const SendLobbyData = () =>{
 	}
 }
 
-const  SnedUserInfo = async (uid:number) =>{
+const sendUserInfo = async (uid:number, sendAvata:boolean) =>{
 	const user = await DUsers.findOne({_id: uid});
 	if (user===null) return {error: 20300};
-	const avatar = readAvatar(user.avatar);
+	let avatar : string
+	if(sendAvata)
+		avatar = readAvatar(user.avatar);
+	else
+		avatar = "0"
+	const rewards = user.rewards || 0;
 	const poolUser = await DPool.findOne({_id: uid});
 	const exp = poolUser===null ? 0 : poolUser.earns;
 	const notice = await getSysNotice();
-	const rows = await DSendMoneyHistory.find({to_uid:uid, updated: 0}).sort({created: 1}).toArray();
-	const result = [user.alias, user._id, user.balance, exp, avatar, rows.length, notice]
+	const countMsg = await DSysMsg.count({uid, updated: 0});
+	
+	const supportUrl = "https://niuniu.deamchain.com/support/deposit/fdsfsfdsfdsfdsfdsfdsfsdfsdfs";
+	const result = [user.alias, user._id, user.balance, exp, avatar, countMsg, rewards, notice, supportUrl]
+
 	sendToClients([uid], "update-user-info", {result: result});
 }
 

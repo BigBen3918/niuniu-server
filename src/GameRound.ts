@@ -1,6 +1,6 @@
 
 import { DPool, DRounds, DUsers, GAMERULE, GAMESTEP, getLastUID, JUDGETYPE, SchemaPool, SchemaRound, SchemaUser, setLastUID } from './Model'
-import { UserType, CLIENT_STATE, RoomType, sendToClients, CommandType, deleteRoom, startRound, findPlayerById, setPoolAmount, getPool, sendToClientsWithStat} from './ClientApi'
+import { UserType, CLIENT_STATE, RoomType, sendToClients, CommandType, deleteRoom, startRound, findPlayerById, addPoolAmount, sendToClientsWithStat} from './ClientApi'
 import { now } from './utils/helper';
 const MAX_CARD = 5;
 
@@ -8,7 +8,7 @@ const MAX_CARD = 5;
 const GAME_TEXT_TIMERS = [
 	"请选择抢庄倍数：{num}秒",
 	"请等待其他玩家选择倍数：{num}秒",
-	"请等待其他瓦加亮牌：{num}秒"
+	"请等待其他玩家亮牌：{num}秒"
 ]
 
 
@@ -92,7 +92,7 @@ export class GameRound{
 			}
 		})));
 		let amount = antes * us.length;
-		setPoolAmount(getPool()[0] + amount * 0.09);
+		await addPoolAmount(amount * 0.09);
 
 		await DRounds.insertOne({
 			_id: 				this.room.roundId,
@@ -311,27 +311,27 @@ export class GameRound{
 			this.secondTime = this.processTimeOut[4];
 			this.room.step = GAMESTEP.Result
 			const sendData : number[] = []
-				const gameResult = this.getResult()
-				deleteRoom(-1)
-				sendData.push(gameResult[0].length)
-				sendData.push(gameResult[1].length)
-				for(let i = 0; i < gameResult[0].length; i++){
-					const index = this.room.playerList.findIndex(item=>{
-						if(item == undefined) return false
-						if(item.id == gameResult[0][i][0]) return true
-					})
-					sendData.push(index)
-					sendData.push(gameResult[0][i][2])
-				}
-				for(let i = 0; i < gameResult[1].length; i++){
-					const index = this.room.playerList.findIndex(item=>{
-						if(item == undefined) return false
-						if(item.id == gameResult[1][i][0]) return true
-					})
-					sendData.push(index)
-					sendData.push(gameResult[1][i][2])
-				}
-				this.sendToPlayers("game-result", {result:sendData})
+			const gameResult = this.getResult()
+			deleteRoom(-1)
+			sendData.push(gameResult[0].length)
+			sendData.push(gameResult[1].length)
+			for(let i = 0; i < gameResult[0].length; i++){
+				const index = this.room.playerList.findIndex(item=>{
+					if(item == undefined) return false
+					if(item.id == gameResult[0][i][0]) return true
+				})
+				sendData.push(index)
+				sendData.push(gameResult[0][i][2])
+			}
+			for(let i = 0; i < gameResult[1].length; i++){
+				const index = this.room.playerList.findIndex(item=>{
+					if(item == undefined) return false
+					if(item.id == gameResult[1][i][0]) return true
+				})
+				sendData.push(index)
+				sendData.push(gameResult[1][i][2])
+			}
+			this.sendToPlayers("game-result", {result:sendData})
 		}
 	}
 
@@ -492,9 +492,9 @@ export class GameRound{
 		const players = this.room.playerList
 		const antes = this.room.antes
 		for(let i = 0; i < 6; i ++){
-			if(players[i] == undefined) continue
-			if(players[i].id == this.room.bankerId) continue
-			if(banker.judge > players[i].judge || banker.judge == players[i].judge && banker.cardPower > players[i].cardPower){
+			if(players[i] === undefined) continue
+			if(players[i].id === this.room.bankerId) continue
+			if(banker.judge > players[i].judge || (banker.judge === players[i].judge && banker.cardPower > players[i].cardPower)){
 				const multiple = banker.multiplier * this.getCardMultipler(banker.judge)
 				const earnValue = antes * multiple
 				banker.earns.push([players[i].id, earnValue, multiple]);

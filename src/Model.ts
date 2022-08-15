@@ -56,6 +56,7 @@ export interface SchemaConfig {
 	uid?:				number
 	roomId?:			number
 	roundId?:			number
+	pool?:				number
 }
 
 // export interface SchemaAdmin {
@@ -87,6 +88,7 @@ export interface SchemaUser {
 	alias:				string
 	password:			string
 	balance:			number
+	rewards:			number
 	/* exp:				number */
 	avatar:				number
 	parent:				number
@@ -169,13 +171,19 @@ export interface SchemaSysNotice {
 export interface SchemaSendMoneyHistory {
 	from_uid:			number
 	to_uid:				number
-	contents:			string
+	// contents:			string
 	balance:            number
 	from_updated:		number
 	to_updated:         number	// 读取时间
 	created:			number	// 发送时间
 }
 
+export interface SchemaSysMsg {
+	uid:				number
+	contents:			string
+	updated:			number	// 读取时间
+	created:			number	// 发送时间
+}
 export interface SchemaMsg {
 	uid:				number
 	contents:			string
@@ -183,17 +191,31 @@ export interface SchemaMsg {
 	updated:			number	// 读取时间
 	created:			number	// 发送时间
 }
+export interface SchemaWithdraw {
+	uid:				number
+	type:				"bank"|"alipay"
+	bank:				string
+	account:			string
+	owner:				string
+	amount:				number
+	fee:				number
+	status:				boolean
+	updated:			number	// 发送时间
+	created:			number	// 发送时间
+}
 
+export const DConfig = 		db.collection<SchemaConfig>('config');
+export const DUsers = 		db.collection<SchemaUser>('users');
+export const DRooms = 		db.collection<SchemaRoom>('rooms');
+export const DRounds = 		db.collection<SchemaRound>('rounds');
+export const DPool = 		db.collection<SchemaPool>('pool');
+export const DPoolLogs = 	db.collection<SchemaPoolLogs>('poollogs');
+export const DSysMsg =	db.collection<SchemaSysMsg>('sysmsg');
+export const DSysNotice =	db.collection<SchemaSysNotice>('sysnotice');
+export const DSendMoneyHistory =db.collection<SchemaSendMoneyHistory>('sendmoneyhistory');
+export const DWithdraws =	db.collection<SchemaWithdraw>('withdraws');
 
-export const DConfig = 		db.collection<SchemaConfig>('config')
-export const DUsers = 		db.collection<SchemaUser>('users')
-export const DRooms = 		db.collection<SchemaRoom>('rooms')
-export const DRounds = 		db.collection<SchemaRound>('rounds')
-export const DPool = 		db.collection<SchemaPool>('pool')
-export const DPoolLogs = 	db.collection<SchemaPoolLogs>('poollogs')
-export const DSysNotice =	db.collection<SchemaSysNotice>('sysnotice')
-export const DSendMoneyHistory =		db.collection<SchemaSendMoneyHistory>('sendmoneyhistory')
-export const DMsg =			db.collection<SchemaMsg>('msgs')
+export const DMsg =			db.collection<SchemaMsg>('msgs');
 
 const open = async () => {
 	try {
@@ -219,23 +241,25 @@ const open = async () => {
 		
 		DPoolLogs.createIndex({uid: 1}, {unique: false, name: 'plog_id'})
 
-		await DUsers.insertOne({
-			_id: 1,
-			email: 				'leopawel65@gmail.com', 
-			alias:				"admin",
-			password:			'8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
-			balance:			0,
-			avatar:				0,
-			parent:				0,
-			lastLogged:			0,
-			loginCount:			0,
-			active:				true,
-			updated:			0,
-			created:			now()
-		});
-
-		DSysNotice.updateOne({_id: 1}, {$set: {contents: '尊敬的玩家：充值先下载多聊！'}}, {upsert: true});
-
+		const userCount = await DUsers.count({});
+		if (userCount===0) {
+			await DUsers.insertOne({
+				_id: 1,
+				email: 				'leopawel65@gmail.com', 
+				alias:				"admin",
+				password:			'8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+				balance:			0,
+				rewards:			0,
+				avatar:				0,
+				parent:				0,
+				lastLogged:			0,
+				loginCount:			0,
+				active:				true,
+				updated:			0,
+				created:			now()
+			});
+			DSysNotice.updateOne({_id: 1}, {$set: {contents: '尊敬的玩家：充值先下载多聊！'}}, {upsert: true});
+		}
 	} catch (error) {
 		setlog('Connection to MongoDB failed', error)
 		process.exit()
@@ -248,6 +272,16 @@ const close = async () => {
 	} catch (error) {
 		process.exit()
 	}
+}
+
+export const getPool = async (): Promise<number> => {
+	const row = await DConfig.findOne({id: 1})
+	return row?.pool || 0
+}
+
+export const setPool = async (pool: number): Promise<boolean> => {
+	const res = await DConfig.updateOne({id: 1}, {$set: {pool}}, {upsert: true})
+	return res.modifiedCount + res.upsertedCount > 0
 }
 
 export const getLastUID = async (): Promise<number> => {
