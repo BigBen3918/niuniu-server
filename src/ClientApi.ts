@@ -160,7 +160,7 @@ const removeClient = (con: websocket.connection) => {
 }
 
 const readAvatar = (avatarId: number) => {
-	const uri = __dirname+'/../avatars/' + avatarId + '.png'
+	const uri = __dirname+'/../avatars/' + (avatarId<1e6 ? 'default' : 'custom') + '/' + avatarId + '.png'
 	const avatar = fs.readFileSync(uri).toString('base64');
 	return avatar
 }
