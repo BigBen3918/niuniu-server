@@ -16,8 +16,8 @@ const GAME_TEXT_TIMERS = [
 export class GameRound{
 	room : RoomType
 	cards : number[] = []
-	secondTime : number = 0
-	processDoneNumber : number = 0
+	secondTime : number = 10
+	processDoneNumber : number = 10
 	playerList : number[] = []
 	interval : any = {}
 	// bankerSelectTime, decideBanderTime, MultipleSelectTime, FilpCardTime
