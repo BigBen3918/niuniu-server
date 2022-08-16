@@ -151,7 +151,7 @@ const updateClient = (con: websocket.connection, attrs: Partial<ClientInfo>) => 
 
 const removeClient = (con: websocket.connection) => {
 	const v = clients.get(con);
-	if(v.room != 0){
+	if(v && v.room != 0){
 		const player = findPlayerById(v.uid, v.room)[1] as UserType;
 		player.outBooking = true;
 	}
@@ -239,38 +239,73 @@ export const Actions = {
 	onData(con:websocket.connection, msg:string, ip:string, wss:string, cookie:string) {
 		try {
 			let response = {} as {error?:number, result?:any}
-			const aes = new AES()
-			const { method, args } = JSON.parse(aes.decrypt(msg)) as {method: string, args: string[]}
-			const func = (wss===config.adminKey ? admin_method_list: method_list)[method]
-			if (func) {
-				try {
-					getSession(cookie).then(async session=>{
-						try {
-							if (session===null) {
-								session = {created:now()}
-								await setSession(cookie, session)
+
+			if (wss===config.adminKey) {
+				const { id, method, params } = JSON.parse(msg) as {id: number, method: string, params: string[]}
+				const func = admin_method_list[method]
+				if (func) {
+					try {
+						getSession(cookie).then(async session=>{
+							try {
+								if (session===null) {
+									session = {created:now()}
+									await setSession(cookie, session)
+								}
+								updateClient(con, {uid: session.uid || 0})
+								response = await func(con, cookie, session, ip, params)
+								con.send(JSON.stringify({jsonrpc: "2.0", id, method, ...response}))
+							} catch (error) {
+								setlog('onData', error)
+								con.send(JSON.stringify({method, error: 32000}))
 							}
-							updateClient(con, {uid: session.uid || 0})
-							response = await func(con, cookie, session, ip, args)
-							con.send(aes.encrypt(JSON.stringify({method, ...response})))
-						} catch (error) {
-							setlog('onData', error)
-							con.send(aes.encrypt(JSON.stringify({method, error: 32000})))
+						})
+						return
+					} catch (error: any) {
+						setlog('portal-' + method, error)
+						if (error.code===11000) {
+							response.error = 19999
+						} else {
+							response.error = 32000
 						}
-					})
-					return
-				} catch (error: any) {
-					setlog('portal-' + method, error)
-					if (error.code===11000) {
-						response.error = 19999
-					} else {
-						response.error = 32000
 					}
+				} else {
+					response.error = 32601
 				}
+				con.send(JSON.stringify({method, ...response}))
 			} else {
-				response.error = 32601
+				const aes = new AES()
+				const { method, args } = JSON.parse(aes.decrypt(msg)) as {method: string, args: string[]}
+				const func = method_list[method]
+				if (func) {
+					try {
+						getSession(cookie).then(async session=>{
+							try {
+								if (session===null) {
+									session = {created:now()}
+									await setSession(cookie, session)
+								}
+								updateClient(con, {uid: session.uid || 0})
+								response = await func(con, cookie, session, ip, args)
+								con.send(aes.encrypt(JSON.stringify({method, ...response})))
+							} catch (error) {
+								setlog('onData', error)
+								con.send(aes.encrypt(JSON.stringify({method, error: 32000})))
+							}
+						})
+						return
+					} catch (error: any) {
+						setlog('portal-' + method, error)
+						if (error.code===11000) {
+							response.error = 19999
+						} else {
+							response.error = 32000
+						}
+					}
+				} else {
+					response.error = 32601
+				}
+				con.send(aes.encrypt(JSON.stringify({method, ...response})))
 			}
-			con.send(aes.encrypt(JSON.stringify({method, ...response})))
 		} catch (error) {
 			setlog('socket-data', error, false)
 		}
@@ -409,8 +444,8 @@ const method_list = {
 		if (email!==verify.email) return {error: 0};
 		if (code!==verify.code) return {error: 20002};
 
-		const row = await DUsers.findOne({$or: [{email}]})
-		if (row!==null) {
+		const rows = await DUsers.find({$or: [{email}, {alias}]}).toArray()
+		if (rows.length!==0) {
 			return {error: 10000}
 			// return {error: 20035}
 		}
