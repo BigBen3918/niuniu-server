@@ -20,21 +20,21 @@ const template = fs.readFileSync(__dirname + '/../../email/template.html').toStr
 export const sendRawEmail = (to:string, subject:string, html:string):Promise<boolean> => {
 	return new Promise(resolve=>{
 		try {
-			if (isDev) {
-				console.log(to, html.replace(/<[^>]*>?/gm, ''));
-				// resolve(true)
-				axios.post(config.email.testApi, {jsonrpc: "2.0", method: "send-email", params: [to, subject, html], id: 1}, {timeout: 60000, headers: {'Content-Type': 'application/json'}}).then(response=>{
-					if (response!==null && response.data) {
-						resolve(!!response.data.result);
-					} else {
-						resolve(false);
-					}
-				});
-			} else {
+			// if (isDev) {
+			// 	console.log(to, html.replace(/<[^>]*>?/gm, ''));
+			// 	// resolve(true)
+			// 	axios.post(config.email.testApi, {jsonrpc: "2.0", method: "send-email", params: [to, subject, html], id: 1}, {timeout: 60000, headers: {'Content-Type': 'application/json'}}).then(response=>{
+			// 		if (response!==null && response.data) {
+			// 			resolve(!!response.data.result);
+			// 		} else {
+			// 			resolve(false);
+			// 		}
+			// 	});
+			// } else {
 				const smtpTransport = nodemailer.createTransport(config.email.smtp);
 		
 				smtpTransport.sendMail({
-					from: process.env.SMTP_USER,
+					from: config.email.smtp.auth.user,
 					to,
 					subject,
 					html
@@ -46,7 +46,7 @@ export const sendRawEmail = (to:string, subject:string, html:string):Promise<boo
 						resolve(true);
 					}
 				})
-			}
+			// }
 		} catch (error) {
 			setlog('sendRawEmail', error);
 			resolve(false);
