@@ -162,8 +162,22 @@ const updateClient = (con: websocket.connection, attrs: Partial<ClientInfo>) => 
 const removeClient = (con: websocket.connection) => {
 	const v = clients.get(con);
 	if(v && v.room != 0){
+		const room = rooms[v.room]
 		const player = findPlayerById(v.uid, v.room)[1] as UserType;
-		player.outBooking = true;
+		const index = findPlayerById(v.uid, v.room)[0] as number;
+		if(index !== -1){
+			if(index < 6){
+				if(room.step == GAMESTEP.None){
+					room.playerList[index] = undefined
+					decisionPlayType(v.room);
+				}else{
+					player.outBooking = true;
+				}
+			}else{
+				delete room.spectatorList[index - 6];
+				updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+			}	
+		}
 	}
 	//if (v) delete clientById[v.uid];
 	clients.delete(con);
@@ -572,7 +586,7 @@ const method_list = {
 				roundId:			0,
 				rule,
 				antes,
-				step:				GAMESTEP.Ready,// game step
+				step:				GAMESTEP.None,// game step
 				bankerId:			-1,	// = player.id, if zero, no selected banker
 				playerList: 			[{
 					id:				uid,
@@ -624,7 +638,7 @@ const method_list = {
 				roundId:			0,
 				rule,
 				antes,
-				step:				GAMESTEP.Ready,// game step
+				step:				GAMESTEP.None,// game step
 				bankerId:			-1,	// = player.id, if zero, no selected banker
 				playerList: 			[{
 					id:				uid,
@@ -1086,14 +1100,11 @@ const decisionPlayType = async (roomId: number) => {
 		return newPlayer
 	}
 		
-	if(room.step == GAMESTEP.Created){
-		return
-	} else if (room.step == GAMESTEP.Ready) {
+	if (room.step == GAMESTEP.None) {
 		for(let i = 0; i < 6; i++){
 			const player = room.playerList[i];
 			if(player == undefined){
 				room.playerList[i] = getPlayer();
-				
 			}else{
 				const row = await DUsers.findOne({ _id : player.id })
 				if(row){
@@ -1115,7 +1126,7 @@ const decisionPlayType = async (roomId: number) => {
 
 	} 
 	
-	if(room.step == GAMESTEP.Ready && playerCount > 1){
+	if(room.step == GAMESTEP.None && playerCount > 1){
 		return true;
 	}
 	await deleteRoom(-1)
@@ -1133,7 +1144,7 @@ const decisionPlayType = async (roomId: number) => {
 // }
 export const startRound = async (roomId:number) => {
 	const room = rooms[roomId]
-	room.step = GAMESTEP.Ready
+	room.step = GAMESTEP.None
 	room.bankerId = -1
 	
 	room.updated = now()
@@ -1203,6 +1214,21 @@ const SendEnterRoomData = (id:number, roomId:number, position:number) => {
 		enterRoomData.push(room.playerList[i].avatar)
 		enterRoomData.push(room.playerList[i].balance)
 	}
+	//testCode!!(need delete)
+	// for(let i = 0; i < 6; i++){
+	// 	if(room.playerList[i] == undefined){
+	// 		enterRoomData.push(0)
+	// 		enterRoomData.push(0)
+	// 		enterRoomData.push(0)
+	// 		continue
+	// 	}
+	// 	enterRoomData.push(room.playerList[i].alias)
+	// 	//for(let i = 0; i < 30; i++){
+	// 		enterRoomData.push(room.playerList[i].avatar)
+	// 	//}
+		
+	// 	enterRoomData.push(room.playerList[i].balance)
+	// }
 	sendToClients([id], "enter-room-data", {result:enterRoomData})
 }
 
@@ -1253,7 +1279,7 @@ const addPlayer = async ( uid : number, roomId : number ) => {
 			restCards:      [],
 			outBooking:		false
 		});
-		if(room.step == GAMESTEP.Created || room.step == GAMESTEP.Ready){
+		if(room.step == GAMESTEP.None){
 			return decisionPlayType(roomId)
 		}else{
 			room.gameRound.SendCurrentRoundData(uid);

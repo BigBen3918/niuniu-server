@@ -38,7 +38,7 @@ export enum JUDGETYPE {
 }
 
 export enum GAMESTEP {
-	Created,
+	None,
 	Ready,				// 分派		// 分派牌张
 	BankerSelect,
 	DecideRanker,		// 选择抢庄倍数

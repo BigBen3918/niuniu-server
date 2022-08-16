@@ -29,6 +29,7 @@ export class GameRound{
 
 	initialize(api: { room:RoomType }){
 		this.room = api.room
+		this.room.step = GAMESTEP.Ready;
 		this.cards[0] = 0;
 		for(let i = 0; i < 36; i++){
 			this.cards[i] = i
@@ -490,6 +491,7 @@ export class GameRound{
 	getResult(){
 		const banker = this.findByUid(this.room.bankerId);
 		const players = this.room.playerList
+		const spectator = this.room.spectatorList
 		const antes = this.room.antes
 		for(let i = 0; i < 6; i ++){
 			if(players[i] === undefined) continue
@@ -514,12 +516,6 @@ export class GameRound{
 			}
 			
 		}
-		for(let i = 0; i < 6; i ++){
-			if(players[i] == undefined) continue
-			if(players[i].outBooking == true) 
-				this.room.playerList[i] = undefined;
-		}
-		
 		this.writeResult();
 		return [banker.earns, banker.loss]
 		// let banker = 0;
@@ -671,6 +667,12 @@ export class GameRound{
 		if(this.room.step == GAMESTEP.Result){
 			if(this.secondTime == 0){
 				this.sendToPlayers("end-round", {result:[0]})
+				const players = this.room.playerList
+				for(let i = 0; i < 6; i ++){
+					if(players[i] == undefined) continue
+					if(players[i].outBooking == true) 
+						this.room.playerList[i] = undefined;
+				}
 			}
 
 			if(this.secondTime < -2){
