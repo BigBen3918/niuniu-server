@@ -23,9 +23,6 @@ export class GameRound{
 	// bankerSelectTime, decideBanderTime, MultipleSelectTime, FilpCardTime
 	//processTimeOut : number[] = [10, 2, 7, 10] 
 	processTimeOut : number[] = [13, 2, 7, 6, 8]
-	//processTimeOut : number[] = [3, 1, 1, 4, 5]
-	
-	//Object.assign([], myArray);
 
 	initialize(api: { room:RoomType }){
 		this.room = api.room
