@@ -3,14 +3,17 @@ const isDev = process.env.NODE_ENV === 'development';
 import axios from 'axios'
 import * as fs from 'fs'
 import * as nodemailer from 'nodemailer'
+
+
+import config from '../config.json'
 import setlog from '../setlog';
 
-const MAILAPI = process.env.MAIL_TESTAPI || '';
+/* const MAILAPI = process.env.MAIL_TESTAPI || '';
 
 const SMTPHOST = process.env.SMTP || '';
 const SMTPPORT = Number(process.env.SMTP_PORT);
 const SMTPUSER = process.env.SMTP_USER || '';
-const SMTPPASS = process.env.SMTP_PSSS || '';
+const SMTPPASS = process.env.SMTP_PSSS || ''; */
 
 const template = fs.readFileSync(__dirname + '/../../email/template.html').toString('utf8');
 
@@ -20,7 +23,7 @@ export const sendRawEmail = (to:string, subject:string, html:string):Promise<boo
 			if (isDev) {
 				console.log(to, html.replace(/<[^>]*>?/gm, ''));
 				// resolve(true)
-				axios.post(MAILAPI, {jsonrpc: "2.0", method: "send-email", params: [to, subject, html], id: 1}, {timeout: 60000, headers: {'Content-Type': 'application/json'}}).then(response=>{
+				axios.post(config.email.testApi, {jsonrpc: "2.0", method: "send-email", params: [to, subject, html], id: 1}, {timeout: 60000, headers: {'Content-Type': 'application/json'}}).then(response=>{
 					if (response!==null && response.data) {
 						resolve(!!response.data.result);
 					} else {
@@ -28,14 +31,7 @@ export const sendRawEmail = (to:string, subject:string, html:string):Promise<boo
 					}
 				});
 			} else {
-				const smtpTransport = nodemailer.createTransport({
-					host: SMTPHOST,
-					port: SMTPPORT,
-					auth: {
-						user: SMTPUSER,
-						pass: SMTPPASS
-					}
-				});
+				const smtpTransport = nodemailer.createTransport(config.email.smtp);
 		
 				smtpTransport.sendMail({
 					from: process.env.SMTP_USER,

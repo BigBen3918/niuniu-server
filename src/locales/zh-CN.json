@@ -1,3 +1,52 @@
 {
-	"lang" : "中国语（简体）"
+	"lang" : "中国语（简体）",
+	
+	"email.login.subject": "[金刚牛] Verify your login",
+	"email.login.content": "Verify your login!\nPlease use the following code to verify your login\nVerification code:\n{{code}}\nThe verification code will be valid for 5 minutes.\nPlease do not share this code with anyone.",
+	"email.register.subject": "[金刚牛] 验证您的注册",
+	"email.register.content": "验证您的注册！\n请使用以下代码验证您的注册\n验证码:\n {{code}} \n验证码的有效期为5分钟。\n请不要与任何人共享此代码。",
+	"email.request.subject": "[金刚牛] 验证您的密码重置请求",
+	"email.request.content": "验证您的密码重置请求\n您已请求重置密码。\n请使用下面的 6 位数代码：\n{{code}}\n验证码将在 5 分钟内有效。\n请不要分享此代码 和任何人。",
+	"email.reset.subject": "[金刚牛] 重设密码",
+	"email.reset.content": "密码重置\n注意：更新您的密码后，我们将在 24 小时内禁止提款。\n要确认您的请求，\n<a href={{url}} target='_blank'>{{url}}</a >\n网址有效期为 5 分钟。\n请不要与任何人分享此网址。",
+	"email.reset-success.subject": "[金刚牛] 密码重置成功",
+	"email.reset-success.content": "密码重置\n您的密码已成功更改。 \n为了更加安全，请退出所有活动会话并使用您的新密码登录。 \n如果您没有进行此更改，请联系我们的支持团队寻求帮助。",
+
+	
+	"error.10000": "not found",
+	"error.10001": "dataformat invalid",
+
+	"error.20000": "invalid email format",
+	"error.20001": "invalid email",
+	"error.20002": "invalid verify email code",
+
+	"error.20004": "invalid password format",
+	"error.20005": "invalid password",
+	
+	"error.20006": "no Active",
+	
+	"error.20030": "invalid paramter(s)",
+	"error.20032": "password mismatch",
+	"error.20034": "no permission",
+	"error.20037": "already exists.",
+	"error.20100": "first login",
+
+	
+	
+	"error.20200": "not found specified room number",
+	
+	"error.20300": "can't find user",
+
+	"error.20400": "request create room antes invalied",
+	"error.20401": "lack balance",
+	
+	"error.32700": "Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
+	"error.32600":	"The JSON sent is not a valid Request object.",
+	"error.32601":	"The method does not exist / is not available.",
+	"error.32602":	"Invalid method parameter(s).",
+	"error.32603":	"Internal JSON-RPC error.",
+	"error.32604":	"Internal Authentication Method.",
+	"error.32000":	"Reserved for implementation-defined server-errors.",
+	"error.0":      "unknown",
+	"error.-1":		"Network disconnected"
 }

@@ -28,7 +28,17 @@ import WebCrypto from './utils/WebCrypto'
 // import { getCommentRange, getModeForResolutionAtIndex } from 'typescript'
 import {GameRound} from './GameRound'
 import { AnyBulkWriteOperation } from 'mongodb'
+import sendEmail from './utils/Email'
 // import { timeStamp } from 'console'
+import enUS from './locales/en-US.json';
+import zhCN from './locales/zh-CN.json';
+
+const locals = {
+	'en-US': enUS,
+	'zh-CN': zhCN,
+}
+
+const L = locals['en-US'];
 
 const feeRate = 0.02;
 
@@ -417,22 +427,25 @@ const method_list = {
 		// if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
 		//if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
 		const code = generateCode();
-		session.verify = {email, code};
-		await setSession(cookie, session);
+		
+		
 		
 		console.log('verify-code', code);
-		// session.uid = user._id;
-		// await setSession(cookie, session);
-		// // const result = {
-		// // 	uid:			user._id,
-		// // 	lastLogin: 		user.lastLogged
-		// // }
-		// const result = [user.alias, user._id, user.balance, user.exp, user.avatar]
-		// await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
-		// updateClient(con, {uid: user._id, room:0, state: CLIENT_STATE.GAEM_SELECT});
-		sendToClients(con, "send-code", {result:[0]});
 
-		return { result: true };
+		const subject = L["email.register.subject"];
+		const content = L["email.register.content"];
+		const result = await sendEmail(email, subject, content, {code});
+		if (result===true) {
+			session.verify = {email, code};
+			await setSession(cookie, session);
+			sendToClients(con, "send-code", {result:[0]});
+			return {result: true}
+		} else {
+			return { error:10319 };
+		}
+		
+
+		// return { result: true };
 	},
 
 	"register": async (con, cookie, session, ip, params)=>{

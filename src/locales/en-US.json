@@ -1,7 +1,18 @@
 {
 	"lang" : "English",
-	"title": "blockscan",
 	
+	"email.login.subject": "[Jingangniu] Verify your login",
+	"email.login.content": "Verify your login!\nPlease use the following code to verify your login\nVerification code:\n{{code}}\nThe verification code will be valid for 5 minutes.\nPlease do not share this code with anyone.",
+	"email.register.subject": "[Jingangniu] Verify your registration",
+	"email.register.content": "Verify your registration!\nPlease use the following code to verify your registration\nVerification code:\n{{code}}\nThe verification code will be valid for 5 minutes.\nPlease do not share this code with anyone.",
+	"email.request.subject": "[Jingangniu] Verify your password reset request",
+	"email.request.content": "Verify your password reset request\nYou've requested to reset the password.\nplease use the 6-digit code below:\n{{code}}\nThe verification code will be valid for 5 minutes.\nPlease do not share this code with anyone.",
+	"email.reset.subject": "[Jingangniu] Password reset",
+	"email.reset.content": "Password reset\nNote: After updating your password, we'll disable withdrawals for 24 hours.\nTo confirm your request, \n<a href={{url}} target='_blank'>{{url}}</a>\nThe url will be valid for 5 minutes.\nPlease do not share this url with anyone.",
+	"email.reset-success.subject": "[Jingangniu] Password reset",
+	"email.reset-success.content": "Password reset\nYour password has been changed successfully. \nTo be extra safe, log out of all active sessions and log in using your new password. \nIf you didn't make this change, please contact our support team for assistance.",
+
+
 	"error.10000": "not found",
 	"error.10001": "dataformat invalid",
 
