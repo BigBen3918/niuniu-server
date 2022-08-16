@@ -321,6 +321,7 @@ export class GameRound{
 		}
 		this.sendToPlayers("card-result", {result:sendData})
 		if(!processing){
+			if(this.room.step == GAMESTEP.Result) return
 			this.secondTime = this.processTimeOut[4];
 			this.room.step = GAMESTEP.Result
 			const sendData : number[] = []
