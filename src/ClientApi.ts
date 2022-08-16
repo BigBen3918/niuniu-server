@@ -19,7 +19,7 @@ import { DMsg, DPool, DSendMoneyHistory, DSysMsg, DSysNotice, DUsers, DWithdraws
 /* import {Double} from 'mongodb' */
 // var Double = require("mongodb").Double;
 
-import AES from './utils/aes'
+import AES from './utils/AES'
 import WebCrypto from './utils/WebCrypto'
 // import GameModel from './GameModel'
 // import { stringify } from 'querystring'
