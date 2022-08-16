@@ -20,14 +20,10 @@ export class GameRound{
 	processDoneNumber : number = 0
 	playerList : number[] = []
 	interval : any = {}
-	// bankerSelectTime, decideBanderTime, MultipleSelectTime, FilpCardTime
-	//processTimeOut : number[] = [10, 2, 7, 10] 
 	processTimeOut : number[] = [13, 2, 7, 6, 8]
-
 	initialize(api: { room:RoomType }){
 		this.room = api.room
 		this.room.step = GAMESTEP.Ready;
-		// this.cards[0] = 0;
 		for(let i = 0; i < 36; i++){
 			this.cards[i] = i
 		}
@@ -41,10 +37,6 @@ export class GameRound{
 		for (const spectator of this.room.spectatorList){
 			sendToClients([spectator.id], "ready-round", {result: [0]});
 		}
-		//this.startRound()
-		//
-		
-		//
 		this.interval = setInterval(()=>{
 			this.secondTime --;
 			this.checkTime()
