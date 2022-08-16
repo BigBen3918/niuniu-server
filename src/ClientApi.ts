@@ -38,7 +38,7 @@ const locals = {
 	'zh-CN': zhCN,
 }
 
-const L = locals['en-US'];
+const L = locals['zh-CN'];
 
 const feeRate = 0.02;
 
@@ -427,11 +427,6 @@ const method_list = {
 		// if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
 		//if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
 		const code = generateCode();
-		
-		
-		
-		
-
 		const subject = L["email.register.subject"];
 		const content = L["email.register.content"];
 		const result = await sendEmail(email, subject, content, {code});
