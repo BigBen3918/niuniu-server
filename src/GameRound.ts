@@ -16,14 +16,14 @@ const GAME_TEXT_TIMERS = [
 export class GameRound{
 	room : RoomType
 	cards : number[] = []
-	secondTime : number = 10
-	processDoneNumber : number = 10
+	secondTime : number = 0
+	processDoneNumber : number = 0
 	playerList : number[] = []
 	interval : any = {}
 	// bankerSelectTime, decideBanderTime, MultipleSelectTime, FilpCardTime
 	//processTimeOut : number[] = [10, 2, 7, 10] 
-	//processTimeOut : number[] = [10, 2, 7, 6, 8]
-	processTimeOut : number[] = [3, 1, 1, 4, 5]
+	processTimeOut : number[] = [10, 2, 7, 6, 8]
+	//processTimeOut : number[] = [3, 1, 1, 4, 5]
 	
 	//Object.assign([], myArray);
 
