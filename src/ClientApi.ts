@@ -430,7 +430,7 @@ const method_list = {
 		
 		
 		
-		console.log('verify-code', code);
+		
 
 		const subject = L["email.register.subject"];
 		const content = L["email.register.content"];
@@ -439,8 +439,10 @@ const method_list = {
 			session.verify = {email, code};
 			await setSession(cookie, session);
 			sendToClients(con, "send-code", {result:[0]});
+			console.log('send email code', code, email);
 			return {result: true}
 		} else {
+			console.log('failed to send email code', email);
 			return { error:10319 };
 		}
 		
