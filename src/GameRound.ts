@@ -75,7 +75,7 @@ export class GameRound{
 		}
 		for (const spectator of this.room.spectatorList){
 			let sendData = this.playerList.concat([-1, -1, -1, -1, -1])
-			sendToClients([spectator.id], "start-round", {result: this.playerList});
+			sendToClients([spectator.id], "start-round", {result: sendData});
 		}
 		this.room.step = GAMESTEP.BankerSelect;
 		this.secondTime = this.processTimeOut[0];
