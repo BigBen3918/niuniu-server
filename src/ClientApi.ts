@@ -693,7 +693,6 @@ const method_list = {
 		await deleteRoom(-1)
 		SendLobbyData()
 		if(g) {
-			rooms[roomId].step = GAMESTEP.Ready;
 			await startRound(roomId)
 		}
 
@@ -1153,6 +1152,7 @@ const decisionPlayType = async (roomId: number) => {
 	} 
 	
 	if(room.step == GAMESTEP.None && playerCount > 1){
+		room.step = GAMESTEP.Ready;
 		return true;
 	}
 	await deleteRoom(-1)
