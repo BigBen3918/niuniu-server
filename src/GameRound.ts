@@ -154,7 +154,7 @@ export class GameRound{
 		let allReady = false
 		for(let i = 1; i < 6; i++){
 			if(players[i] == undefined) continue
-			if(!players[i].isReady && !players[i].outBooking){
+			if(!players[i].isReady){
 				continue
 			}
 			allReady = true
@@ -355,6 +355,7 @@ export class GameRound{
 				sendData.push(index)
 				sendData.push(gameResult[1][i][2])
 			}
+			this.room.step = GAMESTEP.None;
 			this.sendToPlayers("game-result", {result:sendData})
 		}
 	}
@@ -518,6 +519,7 @@ export class GameRound{
 		const antes = this.room.antes
 		for(let i = 0; i < 6; i ++){
 			if(players[i] === undefined) continue
+			players[i].isReady = false;
 			if(players[i].id === this.room.bankerId) continue
 			if(banker.judge > players[i].judge || (banker.judge === players[i].judge && banker.cardPower > players[i].cardPower)){
 				const multiple = banker.multiplier * this.getCardMultipler(banker.judge)
@@ -527,8 +529,6 @@ export class GameRound{
 				banker.balance += earnValue;
 				players[i].balanceChange = -earnValue;
 				banker.balanceChange = earnValue;
-				players[i].isReady = false;
-
 			}else{
 				const multiple = players[i].multiplier * this.getCardMultipler(players[i].judge)
 				const lossValue = antes * multiple
