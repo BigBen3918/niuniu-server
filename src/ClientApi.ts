@@ -177,6 +177,9 @@ const removeClient = (con: websocket.connection) => {
 				}
 			}else{
 				delete room.spectatorList[index - 6];
+				room.spectatorList = room.spectatorList.filter((v) =>{
+					if(v != undefined) return true
+				})
 				updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 			}	
 		}
@@ -786,6 +789,8 @@ const method_list = {
 				if(v != undefined) return true
 			})
 			updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+			await deleteRoom(-1)
+			broadcastEnterRoomData(roomId)
 		}else if(index <= 5 && index >= 0){
 			if(rooms[roomId].step == GAMESTEP.Result || rooms[roomId].step == GAMESTEP.None){
 				rooms[roomId].playerList[index] = undefined;

@@ -618,8 +618,11 @@ export class GameRound{
 		if(this.room.step == GAMESTEP.BankerSelect){
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
-					if(this.room.playerList[i] != undefined)
+					if(this.room.playerList[i] != undefined){
+						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[0].replace('{num}', String(this.secondTime))]});
+					}
+						
 				}
 				for(let i = 0; i < this.room.spectatorList.length; i++){
 					if(this.room.spectatorList[i] != undefined)
@@ -642,18 +645,26 @@ export class GameRound{
 		if(this.room.step == GAMESTEP.MultiplierSelect){
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
-					if(this.room.playerList[i] != undefined)
+					if(this.room.playerList[i] != undefined){
+						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[1].replace('{num}', String(this.secondTime))]});
+					}
+						
 				}
 				for(let i = 0; i < this.room.spectatorList.length; i++){
-					if(this.room.spectatorList[i] != undefined)
+					if(this.room.spectatorList[i] != undefined){
 						sendToClients([this.room.spectatorList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[1].replace('{num}', String(this.secondTime))]});
+					}
+						
 				}
 			}
 			if(this.secondTime < 0){
 				for(let i = 0; i < 6; i++){
-					if(this.room.playerList[i] != undefined && this.room.playerList[i].multiplier == -1)
+					if(this.room.playerList[i] != undefined && this.room.playerList[i].multiplier == -1){
+						if(this.room.playerList[i].outBooking) continue
 						this.onSetMultiplier(this.room.playerList[i].id, 1)
+					}
+						
 				}
 			}
 		}
@@ -661,8 +672,11 @@ export class GameRound{
 		if(this.room.step == GAMESTEP.ShowCard){
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
-					if(this.room.playerList[i] != undefined)
+					if(this.room.playerList[i] != undefined){
+						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[2].replace('{num}', String(this.secondTime))]});
+					}
+						
 				}
 				for(const spectator of this.room.spectatorList){
 					sendToClients([spectator.id], "banker-select-time", {result:[GAME_TEXT_TIMERS[2].replace('{num}', String(this.secondTime))]});
@@ -712,6 +726,7 @@ export class GameRound{
 	sendToPlayers(protocol:CommandType, data:any){
 		for(const player of this.room.playerList){
 			if(player == undefined) continue
+			if(player.outBooking) continue
 			sendToClients([player.id], protocol, data);
 		}
 		for(const spectator of this.room.spectatorList){
