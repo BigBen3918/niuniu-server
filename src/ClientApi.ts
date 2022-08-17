@@ -1143,7 +1143,7 @@ const decisionPlayType = async (roomId: number) => {
 			}
 		}
 	} else {
-		return
+		return false
 	}
 
 	if( playerCount == 0 ){
