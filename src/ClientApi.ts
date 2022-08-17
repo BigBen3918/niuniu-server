@@ -150,7 +150,6 @@ const rooms = {} as {[id: number]: RoomType}
 let lastRoomId = 100001;
 
 const clients = new Map<websocket.connection, ClientInfo>()
-//const clientById = {} as {[cookie: string]: websocket.connection}
 
 const addClient = (con: websocket.connection) => {
 	clients.set(con, {uid: 0, lobby: 0, room: 0, state: CLIENT_STATE.LOGIN, gameRound: {}});
@@ -759,9 +758,6 @@ const method_list = {
 		const uid = session.uid;
 		if (uid===undefined) return {error: 20100};
 		rooms[roomId].gameRound.onFipCard(uid)
-		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
-		// return { result }
 	},
 
 	"filp-one-card": async (con, cookie, session, ip, params)=>{
