@@ -662,7 +662,6 @@ export class GameRound{
 			if(this.secondTime < 0){
 				for(let i = 0; i < 6; i++){
 					if(this.room.playerList[i] != undefined && this.room.playerList[i].multiplier == -1){
-						if(this.room.playerList[i].outBooking) continue
 						this.onSetMultiplier(this.room.playerList[i].id, 1)
 					}
 						
