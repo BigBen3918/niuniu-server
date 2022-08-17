@@ -1384,7 +1384,8 @@ export const findPlayerById = (uid:number, roomId:number) => {
 	const result = []
 	for(const player of room.playerList) {
 		position ++
-		if(player?.id == uid){
+		if(player === undefined) continue
+		if(player.id == uid){
 			result.push(position)
 			result.push(player)
 		}
