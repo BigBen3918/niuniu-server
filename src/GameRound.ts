@@ -30,7 +30,7 @@ export class GameRound{
 	initialize(api: { room:RoomType }){
 		this.room = api.room
 		this.room.step = GAMESTEP.Ready;
-		this.cards[0] = 0;
+		// this.cards[0] = 0;
 		for(let i = 0; i < 36; i++){
 			this.cards[i] = i
 		}
@@ -148,13 +148,13 @@ export class GameRound{
 	}
 
 	async onReadyRoundACK(uid:number){
-		if(this.room.step != GAMESTEP.Ready) return;
+		if(this.room.step != GAMESTEP.Ready && this.room.playerList) return;
 		this.findByUid(uid).isReady = true;
 		const players = this.room.playerList
 		let allReady = false
 		for(let i = 1; i < 6; i++){
 			if(players[i] == undefined) continue
-			if(!players[i].isReady){
+			if(!players[i].isReady && !players[i].outBooking){
 				continue
 			}
 			allReady = true
@@ -355,7 +355,6 @@ export class GameRound{
 				sendData.push(index)
 				sendData.push(gameResult[1][i][2])
 			}
-			this.room.step = GAMESTEP.None;
 			this.sendToPlayers("game-result", {result:sendData})
 		}
 	}
@@ -519,7 +518,6 @@ export class GameRound{
 		const antes = this.room.antes
 		for(let i = 0; i < 6; i ++){
 			if(players[i] === undefined) continue
-			players[i].isReady = false;
 			if(players[i].id === this.room.bankerId) continue
 			if(banker.judge > players[i].judge || (banker.judge === players[i].judge && banker.cardPower > players[i].cardPower)){
 				const multiple = banker.multiplier * this.getCardMultipler(banker.judge)

@@ -786,7 +786,7 @@ const method_list = {
 			})
 			updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 		}else if(index <= 5 && index >= 0){
-			if(rooms[roomId].step == GAMESTEP.None){
+			if(rooms[roomId].step == GAMESTEP.Result || rooms[roomId].step == GAMESTEP.None){
 				rooms[roomId].playerList[index] = undefined;
 				updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 				return decisionPlayType(roomId);
@@ -1103,7 +1103,7 @@ const decisionPlayType = async (roomId: number) => {
 	let playerCount = 0
 	const room = rooms[roomId]
 
-	const moveToSpectator = async (player : UserType ) => {
+	const moveToSpectator = (player : UserType ) => {
 		const a = room.playerList.indexOf(player) 
 		room.playerList[a] = getPlayer()
 		room.spectatorList.push(player)
