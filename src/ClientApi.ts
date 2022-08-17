@@ -1377,12 +1377,9 @@ export const findPlayerById = (uid:number, roomId:number) => {
 	let position: number
 	position = -1
 	const result = []
-	for(const player of room.playerList)
-	{
+	for(const player of room.playerList) {
 		position ++
-		if(player == undefined)
-			continue
-		if(player.id == uid){
+		if(player?.id == uid){
 			result.push(position)
 			result.push(player)
 		}
@@ -1390,7 +1387,7 @@ export const findPlayerById = (uid:number, roomId:number) => {
 	}
 	for(const spectator of room.spectatorList){
 		position++
-		if(spectator.id == uid){
+		if(spectator?.id == uid){
 			result.push(position)
 			result.push(spectator)
 		}
