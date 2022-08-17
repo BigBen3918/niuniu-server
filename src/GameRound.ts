@@ -35,7 +35,7 @@ export class GameRound{
 			sendToClients([player.id], "ready-round", {result:[0]});
 		}
 		for (const spectator of this.room.spectatorList){
-			sendToClients([spectator.id], "ready-round", {result: [0]});
+			sendToClients([spectator.id], "ready-round", {result: [1]});
 		}
 		this.interval = setInterval(()=>{
 			this.secondTime --;

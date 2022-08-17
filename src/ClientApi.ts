@@ -1148,7 +1148,6 @@ const decisionPlayType = async (roomId: number) => {
 
 	if( playerCount == 0 ){
 		await deleteRoom(roomId)
-
 	} 
 	
 	if(room.step == GAMESTEP.None && playerCount > 1){
