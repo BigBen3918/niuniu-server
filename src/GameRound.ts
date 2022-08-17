@@ -20,7 +20,7 @@ export class GameRound{
 	processDoneNumber : number = 0
 	playerList : number[] = []
 	interval : any = {}
-	processTimeOut : number[] = [13, 2, 7, 6, 8]
+	processTimeOut : number[] = [14, 2, 7, 6, 8]
 	initialize(api: { room:RoomType }){
 		this.room = api.room
 		this.room.step = GAMESTEP.Ready;
