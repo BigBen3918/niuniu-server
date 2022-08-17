@@ -69,12 +69,13 @@ export class GameRound{
 		}
 		for (const player of this.room.playerList){
 			if(player == undefined) continue
-			player.balance -= this.room.antes;2
+			player.balance -= this.room.antes;
 			let sendData = this.playerList.concat(player.cardList)
 			sendToClients([player.id], "start-round", {result:sendData});
 		}
 		for (const spectator of this.room.spectatorList){
-			//sendToClients([spectator.id], "start-round", {result: this.playerList});
+			let sendData = this.playerList.concat([-1, -1, -1, -1, -1])
+			sendToClients([spectator.id], "start-round", {result: this.playerList});
 		}
 		this.room.step = GAMESTEP.BankerSelect;
 		this.secondTime = this.processTimeOut[0];
