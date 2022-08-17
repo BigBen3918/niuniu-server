@@ -27,7 +27,7 @@ export class GameRound{
 		for(let i = 0; i < 36; i++){
 			this.cards[i] = i
 		}
-		//this.shuffle()
+		this.shuffle()
 		this.distributeCards4()
 		for (const player of this.room.playerList){
 			// let sendData : number[] = []
