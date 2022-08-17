@@ -188,7 +188,7 @@ const removeClient = (con: websocket.connection) => {
 }
 
 const readAvatar = (avatarId: number) => {
-	const uri = __dirname+'/../avatars/' + (avatarId<1e6 ? 'default' : 'custom') + '/' + avatarId + '.png'
+	const uri = __dirname+'/../avatars/' + (avatarId<1000 ? 'default' : 'custom') + '/' + avatarId + '.png'
 	const avatar = fs.readFileSync(uri).toString('base64');
 	return avatar
 }
@@ -1044,6 +1044,37 @@ const method_list = {
 		});
 		return {result}
 	},
+	"update-avata": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const [ stringTextrue ] = params as [stringTextrue: string];
+		const user = await DUsers.findOne({_id: uid});
+		await DUsers.updateOne({_id: uid}, { $set: {avatar: user._id}})
+		const uri = __dirname+'/../avatars/custom/' + user._id + '.png'
+		require("fs").writeFile(uri, stringTextrue, 'base64', (err:any) => {
+			return {error: 20100};
+		})
+		sendUserInfo(uid, true);
+		return {result: [0]};
+	},
+	"update-alias": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const [ alias ] = params as [alias: string];
+		await DUsers.updateOne({_id: uid}, { $set: {alias: alias}})
+		sendUserInfo(uid, false);
+		return {result: [0]};
+	},
+	"update-password": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		const [ password ] = params as [password: string];
+		if (password.length<6 || password.length>32) return {error: 20004};
+		await DUsers.updateOne({_id: uid}, { $set: {password: WebCrypto.hash(password)}})
+		sendUserInfo(uid, false);
+		return {result: [0]};
+	},
+	
 } as {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
 }
