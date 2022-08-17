@@ -2,7 +2,7 @@
 // by: Leo Pawel 	<https://github.com/galaxy126>
 require("dotenv").config()
 
-import * as express from 'express'
+import e, * as express from 'express'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
 import axios from 'axios'
@@ -60,6 +60,7 @@ interface ClientInfo {
 }
 export interface UserType {
 	id:					number		// user.id
+	isReady:            boolean
 	alias:				string
 	avatar:				string
 	balance:			number
@@ -388,7 +389,8 @@ export type CommandType =
 	"filp-one-card"			|
 	"current-round-data"	|
 	"pool-data"				|
-	"update-user-info"
+	"update-user-info"		|
+	"ready-round"
 "none";
 
 /*
@@ -590,6 +592,7 @@ const method_list = {
 				bankerId:			-1,	// = player.id, if zero, no selected banker
 				playerList: 			[{
 					id:				uid,
+					isReady:		false,
 					alias,
 					avatar,
 					cardFilped:		false,
@@ -642,6 +645,7 @@ const method_list = {
 				bankerId:			-1,	// = player.id, if zero, no selected banker
 				playerList: 			[{
 					id:				uid,
+					isReady: 		false,
 					alias,
 					balance,
 					avatar,
@@ -705,6 +709,16 @@ const method_list = {
 		await deleteRoom(-1)
 		SendLobbyData()
 		if(g) await startRound(roomId)
+	},
+	"ready-round": async (con, cookie, session, ip, params)=>{
+		let [ roomId] = params as [roomId: number]
+		const uid = session.uid;
+		if (uid===undefined) return {error: 20100};
+		rooms[roomId].gameRound.onReadyRoundACK(uid)
+		// const result = await GameModel.setRobBanker(roomId, uid, robBanker)
+		// // notify room
+		// sendToClients([], "game_setRobBanker", [String(uid)]);
+		// return { result }
 	},
 
 	"set-robBanker": async (con, cookie, session, ip, params)=>{
@@ -770,11 +784,18 @@ const method_list = {
 			rooms[roomId].spectatorList = rooms[roomId].spectatorList.filter((v) =>{
 				if(v != undefined) return true
 			})
+			updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 		}else if(index <= 5 && index >= 0){
-			rooms[roomId].playerList[index] = undefined;
-			return decisionPlayType(roomId);
+			if(rooms[roomId].step == GAMESTEP.None){
+				rooms[roomId].playerList[index] = undefined;
+				updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+				return decisionPlayType(roomId);
+			}else{
+				return {error: 20101};
+			}
+	
 		}
-		updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
+		
 		
 		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
 		// sendToClients([], "game_setMutiplier", [String(uid)]);
@@ -1265,6 +1286,7 @@ const addPlayer = async ( uid : number, roomId : number ) => {
 		room.spectatorList.push({
 			id:				uid,
 			alias,
+			isReady: 		false,
 			avatar,
 			cardFilped:		false,
 			balance,

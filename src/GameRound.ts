@@ -36,9 +36,18 @@ export class GameRound{
 		}
 		this.shuffle()
 		this.distributeCards4()
-		this.startRound()
-		this.room.step = GAMESTEP.BankerSelect;
-		this.secondTime = this.processTimeOut[0];
+		for (const player of this.room.playerList){
+			// let sendData : number[] = []
+			if(player == undefined) continue
+			sendToClients([player.id], "ready-round", {result:[0]});
+		}
+		for (const spectator of this.room.spectatorList){
+			sendToClients([spectator.id], "ready-round", {result: [0]});
+		}
+		//this.startRound()
+		//
+		
+		//
 		this.interval = setInterval(()=>{
 			this.secondTime --;
 			this.checkTime()
@@ -68,20 +77,18 @@ export class GameRound{
 				this.playerList.push(1);
 				us.push(this.room.playerList[i].id);
 			}
-			// this.playerList.push(this.room.playerList[i] == undefined? -1 : 1)
 		}
 		for (const player of this.room.playerList){
-			// let sendData : number[] = []
 			if(player == undefined) continue
 			player.balance -= this.room.antes;2
-			let sendData = this.playerList.concat(player.cardList)//{result:getLobbyPageSummary(value.lobby)}
+			let sendData = this.playerList.concat(player.cardList)
 			sendToClients([player.id], "start-round", {result:sendData});
 		}
 		for (const spectator of this.room.spectatorList){
-			// let sendData : number[] = []
-			// sendData = this.playerList.concat([-1,-1,-1,-1,-1])
-			sendToClients([spectator.id], "start-round", {result: this.playerList});
+			//sendToClients([spectator.id], "start-round", {result: this.playerList});
 		}
+		this.room.step = GAMESTEP.BankerSelect;
+		this.secondTime = this.processTimeOut[0];
 		await this.writeStartRound(us, this.room.antes)
 	}
 
@@ -138,6 +145,22 @@ export class GameRound{
 			sendData.push(this.getCardMultipler(this.room.playerList[i].judge))
 		}
 		sendToClients([uid], "current-round-data", {result:sendData});
+	}
+
+	async onReadyRoundACK(uid:number){
+		if(this.room.step != GAMESTEP.Ready) return;
+		this.findByUid(uid).isReady = true;
+		const players = this.room.playerList
+		let allReady = false
+		for(let i = 1; i < 6; i++){
+			if(players[i] == undefined) continue
+			if(!players[i].isReady && !players[i].outBooking){
+				continue
+			}
+			allReady = true
+		}
+		if(allReady)
+			await this.startRound();
 	}
 
 	onSetRobBanker(uid:number, robBanker:number){
@@ -504,6 +527,7 @@ export class GameRound{
 				banker.balance += earnValue;
 				players[i].balanceChange = -earnValue;
 				banker.balanceChange = earnValue;
+				players[i].isReady = false;
 
 			}else{
 				const multiple = players[i].multiplier * this.getCardMultipler(players[i].judge)
