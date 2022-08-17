@@ -692,7 +692,10 @@ const method_list = {
 		broadcastEnterRoomData(roomId)
 		await deleteRoom(-1)
 		SendLobbyData()
-		if(g) await startRound(roomId)
+		if(g) {
+			rooms[roomId].step = GAMESTEP.Ready;
+			await startRound(roomId)
+		}
 
 	},
 
