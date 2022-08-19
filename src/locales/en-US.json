@@ -13,32 +13,8 @@
 	"email.reset-success.content": "Password reset\nYour password has been changed successfully. \nTo be extra safe, log out of all active sessions and log in using your new password. \nIf you didn't make this change, please contact our support team for assistance.",
 
 
-	"error.10000": "not found",
-	"error.10001": "dataformat invalid",
-
-	"error.20000": "invalid email format",
-	"error.20001": "invalid email",
-	"error.20002": "invalid verify email code",
-
-	"error.20004": "invalid password format",
-	"error.20005": "invalid password",
-	
-	"error.20006": "no Active",
-	
-	"error.20030": "invalid paramter(s)",
-	"error.20032": "password mismatch",
-	"error.20034": "no permission",
-	"error.20037": "already exists.",
-	"error.20100": "first login",
-
-	
-	
-	"error.20200": "not found specified room number",
-	
-	"error.20300": "can't find user",
-
-	"error.20400": "request create room antes invalied",
-	"error.20401": "lack balance",
+	"error.30000": "not found",
+	"error.30001": "Admin only",
 	
 	"error.32700": "Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
 	"error.32600":	"The JSON sent is not a valid Request object.",

@@ -11,7 +11,7 @@ const verifyCaptcha = async (token:string) => {
 	try {
 		const src = new TextEncoder().encode(config.deamSecret.slice(0,16))
 		const iv = Buffer.from(src.buffer, src.byteOffset, src.byteLength)
-		let buf = config.deamKey.slice(9).split('').map((c) => {switch (c) { case '-': return '+'; case '_': return '/'; default: return c;}}).join('');
+		let buf = config.deamKey.slice(9).split('').map((c) => {switch (c) {case '-': return '+'; case '_': return '/'; default: return c;}}).join('');
 		const key = crypto.createSecretKey(Buffer.from(buf, 'base64'));
 		const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 		const data = Buffer.concat([cipher.update(new TextEncoder().encode(token)), cipher.final()]).toString('base64');
@@ -62,6 +62,75 @@ const admin_method_list = {
 		return { result: true };
 	},
 
+	// user management
+	"user-getAll": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid || 0;
+		if (uid>0 && uid < 10) return {error: 30001};
+		
+
+
+		return { result: true };
+	},
+	"user-get": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"user-update": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"user-delete": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	// agent management
+	"agent-getAll": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"agent-get": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"agent-update": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"agent-delete": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	// deposit management
+	"deposit-getAll": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"deposit-get": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"deposit-update": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"deposit-delete": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	// withdraw management
+	"withdraw-getAll": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"withdraw-get": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"withdraw-update": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	"withdraw-delete": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	// reward pool management
+	"pool-getAll": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	// pool log management
+	"pool-getLog": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
+	// room management
+	"room-getAll": async (con, cookie, session, ip, params)=>{
+		return { result: true };
+	},
 } as {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
 }
