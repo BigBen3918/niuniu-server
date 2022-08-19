@@ -33,6 +33,10 @@ import sendEmail from './utils/Email'
 import enUS from './locales/en-US.json';
 import zhCN from './locales/zh-CN.json';
 import admin_method_list from './AdminApi'
+import { Semaphore } from 'async-mutex';
+
+const maxConcurrentRequests = 1;
+const semaphore = new Semaphore(maxConcurrentRequests);
 
 const locals = {
 	'en-US': enUS,
@@ -196,7 +200,7 @@ const readAvatar = (avatarId: number) => {
 
 export const getRooms = () => rooms;
 
-clientRouter.post("/",async (req:express.Request, res:express.Response)=>{
+clientRouter.post("/", async (req: express.Request, res: express.Response) => {
 	const { jsonrpc, method, params, id } = req.body as RpcRequestType
 	let response = {} as { error?: number, result?: any }
 	if (jsonrpc === '2.0' && Array.isArray(params)) {
@@ -682,23 +686,25 @@ const method_list = {
 	},
 
 	"join-room": async (con, cookie, session, ip, params) => {
-		let [roomId] = params as [roomId: number];
-		const uid = session.uid;
-		roomId = parseInt(roomId.toString())
-		if (uid === undefined) return { error: 20100 };
-		if (rooms[roomId] === undefined) return;
-		if (findPlayerById(uid, roomId)[1] != undefined) return { error: 10000 };
-		updateClient(con, { room: roomId, state: CLIENT_STATE.GAME });
-		let g: Boolean
-		g = await addPlayer(uid, roomId);
-		await deleteRoom(-1)
-		broadcastEnterRoomData(roomId)
-		// deleteRoom(-1)
-		SendLobbyData()
-		if (g) {
-			await startRound(roomId)
-		}
-
+		return await semaphore.runExclusive(async () => {
+			// Dispatch the network request
+			let [roomId] = params as [roomId: number];
+			const uid = session.uid;
+			roomId = parseInt(roomId.toString())
+			if (uid === undefined) return { error: 20100 };
+			if (rooms[roomId] === undefined) return;
+			if (findPlayerById(uid, roomId)[1] != undefined) return { error: 10000 };
+			updateClient(con, { room: roomId, state: CLIENT_STATE.GAME });
+			let g: Boolean
+			g = await addPlayer(uid, roomId);
+			await deleteRoom(-1)
+			broadcastEnterRoomData(roomId)
+			// deleteRoom(-1)
+			SendLobbyData()
+			if (g) {
+				await startRound(roomId)
+			}
+		});
 	},
 
 	"test-join-room": async (con, cookie, session, ip, params) => {
@@ -1154,8 +1160,8 @@ const decisionPlayType = async (roomId: number) => {
 		let newPlayer: UserType
 		for (const spectator of room.spectatorList) {
 			if (spectator.balance > room.antes) {
-				
-				newPlayer = {...spectator}
+
+				newPlayer = { ...spectator }
 				room.spectatorList.splice(room.spectatorList.indexOf(spectator), 1)
 				playerCount++
 			}
@@ -1186,7 +1192,7 @@ const decisionPlayType = async (roomId: number) => {
 	if (room.step == GAMESTEP.None) {
 		let index = 0;
 		for (let player of room.playerList) {
-			
+
 			//const player = room.playerList[i];
 			if (player === undefined) {
 				room.playerList[index] = getPlayer();
@@ -1201,7 +1207,7 @@ const decisionPlayType = async (roomId: number) => {
 					}
 				}
 			}
-			index ++;
+			index++;
 		}
 	} else {
 		return false
