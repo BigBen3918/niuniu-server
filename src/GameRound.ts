@@ -620,7 +620,6 @@ export class GameRound{
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
 					if(this.room.playerList[i] != undefined){
-						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[0].replace('{num}', String(this.secondTime))]});
 					}
 						
@@ -673,7 +672,6 @@ export class GameRound{
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
 					if(this.room.playerList[i] != undefined){
-						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[2].replace('{num}', String(this.secondTime))]});
 					}
 						
@@ -730,6 +728,7 @@ export class GameRound{
 			sendToClients([player.id], protocol, data);
 		}
 		for(const spectator of this.room.spectatorList){
+			if(spectator.outBooking) continue
 			sendToClients([spectator.id], protocol, data);
 		}
 	}
