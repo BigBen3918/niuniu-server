@@ -29,18 +29,19 @@ export class GameRound{
 		}
 		this.shuffle()
 		this.distributeCards4()
-		for (const player of this.room.playerList){
-			// let sendData : number[] = []
-			if(player == undefined) continue
-			sendToClients([player.id], "ready-round", {result:[0]});
-		}
-		for (const spectator of this.room.spectatorList){
-			sendToClients([spectator.id], "ready-round", {result: [1]});
-		}
+		// for (const player of this.room.playerList){
+		// 	// let sendData : number[] = []
+		// 	if(player == undefined) continue
+		// 	sendToClients([player.id], "ready-round", {result:[0]});
+		// }
+		// for (const spectator of this.room.spectatorList){
+		// 	sendToClients([spectator.id], "ready-round", {result: [1]});
+		// }
 		this.interval = setInterval(()=>{
 			this.secondTime --;
 			this.checkTime()
 		}, 1000);
+		this.startRound();
 
 	}
 	//room.ant = 100;
@@ -141,13 +142,12 @@ export class GameRound{
 		if(this.room.step != GAMESTEP.Ready && this.room.playerList) return;
 		this.findByUid(uid).isReady = true;
 		const players = this.room.playerList
-		let allReady = false
+		let allReady = true
 		for(let i = 1; i < 6; i++){
 			if(players[i] == undefined) continue
 			if(!players[i].isReady && !players[i].outBooking){
-				continue
+				allReady = false
 			}
-			allReady = true
 		}
 		if(allReady)
 			await this.startRound();
