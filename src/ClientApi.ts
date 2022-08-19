@@ -1051,20 +1051,22 @@ const method_list = {
 		const user = await DUsers.findOne({_id: uid});
 		await DUsers.updateOne({_id: uid}, { $set: {avatar: user._id}})
 		const uri = __dirname+'/../avatars/custom/' + user._id + '.png'
-		require("fs").writeFile(uri, stringTextrue, 'base64', (err:any) => {
+		try {
+			fs.writeFileSync(uri, stringTextrue, 'base64');	
+		} catch (error) {
 			return {error: 20100};
-		})
+		}
 		sendUserInfo(uid, true);
 		return {result: [0]};
 	},
-	"update-alias": async (con, cookie, session, ip, params)=>{
-		const uid = session.uid;
-		if (uid===undefined) return {error: 20100};
-		const [ alias ] = params as [alias: string];
-		await DUsers.updateOne({_id: uid}, { $set: {alias: alias}})
-		sendUserInfo(uid, false);
-		return {result: [0]};
-	},
+	// "update-alias": async (con, cookie, session, ip, params)=>{
+	// 	const uid = session.uid;
+	// 	if (uid===undefined) return {error: 20100};
+	// 	const [ alias ] = params as [alias: string];
+	// 	await DUsers.updateOne({_id: uid}, { $set: {alias: alias}})
+	// 	sendUserInfo(uid, false);
+	// 	return {result: [0]};
+	// },
 	"update-password": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid;
 		if (uid===undefined) return {error: 20100};
