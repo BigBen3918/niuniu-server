@@ -1068,9 +1068,12 @@ const method_list = {
 	"update-password": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid;
 		if (uid===undefined) return {error: 20100};
-		const [ password ] = params as [password: string];
-		if (password.length<6 || password.length>32) return {error: 20004};
-		await DUsers.updateOne({_id: uid}, { $set: {password: WebCrypto.hash(password)}})
+		const [ currentPassword, newPassword ] = params as [currentPassword: string, newPassword: string];
+		if (newPassword.length<6 || newPassword.length>32) return {error: 20004};
+		const user = await DUsers.findOne({_id: uid});
+		if (user.password!==WebCrypto.hash(currentPassword)) return {error: 20005}
+
+		await DUsers.updateOne({_id: uid}, { $set: {password: WebCrypto.hash(newPassword)}})
 		sendUserInfo(uid, false);
 		return {result: [0]};
 	},
@@ -1339,6 +1342,9 @@ const addPlayer = async ( uid : number, roomId : number ) => {
 		if(room.step == GAMESTEP.None){
 			return decisionPlayType(roomId)
 		}else{
+			//neet test 
+			await deleteRoom(-1)
+			//neet test 
 			room.gameRound.SendCurrentRoundData(uid);
 		}
 		return false
