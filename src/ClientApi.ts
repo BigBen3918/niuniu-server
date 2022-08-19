@@ -271,6 +271,11 @@ export const Actions = {
 		removeClient(con)
 	},
 
+	onError(con: websocket.connection, cookie: string) {
+		setlog(`deleted socket ${cookie}`, '', true)
+		removeClient(con)
+	},
+
 	onData(con: websocket.connection, msg: string, ip: string, wss: string, cookie: string) {
 		try {
 			let response = {} as { error?: number, result?: any }
