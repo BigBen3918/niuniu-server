@@ -193,7 +193,10 @@ const readAvatar = (avatarId: number) => {
 	return avatar
 }
 
-clientRouter.post("/", async (req: express.Request, res: express.Response) => {
+
+export const getRooms = () => rooms;
+
+clientRouter.post("/",async (req:express.Request, res:express.Response)=>{
 	const { jsonrpc, method, params, id } = req.body as RpcRequestType
 	let response = {} as { error?: number, result?: any }
 	if (jsonrpc === '2.0' && Array.isArray(params)) {
@@ -688,7 +691,6 @@ const method_list = {
 		updateClient(con, { room: roomId, state: CLIENT_STATE.GAME });
 		let g: Boolean
 		g = await addPlayer(uid, roomId);
-		console.log("added")
 		await deleteRoom(-1)
 		broadcastEnterRoomData(roomId)
 		// deleteRoom(-1)
@@ -1212,7 +1214,6 @@ const decisionPlayType = async (roomId: number) => {
 
 	if (room.step == GAMESTEP.None && playerCount > 1) {
 		room.step = GAMESTEP.Ready;
-		console.log("adding")
 		return true;
 	}
 	//await deleteRoom(-1)

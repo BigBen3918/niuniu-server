@@ -1,11 +1,12 @@
 import * as websocket from 'websocket'
-import { DAgents, DUsers } from "./Model";
+import { DAgents, DUsers, getLastUID } from "./Model";
 import { now, validateEmail } from "./utils/helper";
 import { setSession } from "./utils/Redis";
 import WebCrypto from "./utils/WebCrypto";
 import config from './config.json'
 import * as crypto from 'crypto'
 import axios from 'axios'
+import { getRooms } from './ClientApi';
 
 const verifyCaptcha = async (token:string) => {
 	try {
@@ -65,12 +66,31 @@ const admin_method_list = {
 	// user management
 	"user-getAll": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid || 0;
-		if (uid>0 && uid < 10) return {error: 30001};
+		if (uid<1 || uid > 10) return {error: 30001};
 		
-		const rows = await DUsers.find({_id: {$gt: 10}}).sort({created: -1}).limit(10).toArray();
-		const result = [] as Array<{id: number, email: string, alias: string, balance: number, rewards: number, avatar: number, active: boolean, created: number}>
+		let [page, pageSize] = params as [page: number, pageSize: number];
+
+		const total = await DUsers.count({});
+		if (pageSize < 10) {
+			pageSize = 10;
+		} else if (pageSize > 100) {
+			pageSize = 100;
+		}
+		let pageTotal = Math.ceil(total / pageSize);
+		if (page < 1) {
+			page = 1;
+		} else if (page > pageTotal) {
+			page = pageTotal;
+		}
+		let start = (page - 1) * pageSize;
+		let end = start + pageSize;
+		if (end > total) end = total;
+
+		const rows = await DUsers.find({_id: {$gt: 10}}).sort({created: -1}).skip(start).limit(pageSize).toArray();
+
+		const data = [] as Array<{id: number, email: string, alias: string, balance: number, rewards: number, avatar: number, active: boolean, created: number}>
 		for (let i of rows) {
-			result.push({
+			data.push({
 				id: i._id,
 				email: i.email,
 				alias: i.alias,
@@ -81,11 +101,19 @@ const admin_method_list = {
 				created: i.created,
 			});
 		}
-		return { result};
+		return { result: {
+			data, 
+			meta: {
+				page,
+				pageSize,
+				pageTotal,
+				total,
+			}
+		}};
 	},
 	"user-get": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid || 0;
-		if (uid>0 && uid < 10) return {error: 30001};
+		if (uid<1 || uid > 10) return {error: 30001};
 
 		const [id] = params as [id: number];
 		const i = await DUsers.findOne({_id: id});
@@ -107,7 +135,7 @@ const admin_method_list = {
 	},
 	// "user-update": async (con, cookie, session, ip, params)=>{
 	// 	const uid = session.uid || 0;
-	// 	if (uid>0 && uid < 10) return {error: 30001};
+	// 	if (uid<1 || uid > 10) return {error: 30001};
 	// 	const [id, email, alias] = params as [id: number, email: string, alias];
 	// 	const i = await DUsers.findOne({_id: id});
 	// 	if (i) {
@@ -138,22 +166,25 @@ const admin_method_list = {
 	"agent-getAll": async (con, cookie, session, ip, params)=>{
 		const uid = session.uid || 0;
 		if (uid===0) return {error: 30000};
-		const result = [] as Array<{id: number, email: string, ratio: number}>;
+		const result = [] as Array<{id: number, email: string, avatar: number, ratio: number, created: number}>;
 		const rows = await DAgents.find({pid: uid}).limit(100).toArray();
 		if (rows.length) {
 			const users = await DUsers.find({_id: {$in: rows.map(i=>i._id)}}, {projection: {email: 1}}).toArray();
-			const us = {} as {[id: number]: {email: string}}
+			const us = {} as {[id: number]: {email: string, avatar: number}}
 			for (let i of users) {
 				us[i._id] = {
-					email: i.email
+					email: i.email,
+					avatar: i.avatar
 				}
 			}
 			for (let i of rows) {
 				if (us[i._id]!==undefined) {
 					result.push({
 						id: i._id,
+						avatar: us[i._id].avatar,
 						email: us[i._id].email,
-						ratio: i.ratio
+						ratio: i.ratio,
+						created: i.created
 					})
 				}
 			}
@@ -218,6 +249,7 @@ const admin_method_list = {
 	},
 	// room management
 	"room-getAll": async (con, cookie, session, ip, params)=>{
+		const rooms = getRooms();
 		return { result: true };
 	},
 } as {
