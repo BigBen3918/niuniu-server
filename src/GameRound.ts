@@ -746,7 +746,7 @@ export class GameRound{
 		if(judge > 0 && judge < 7) return 1; */
 		if(judge == JUDGETYPE.Cattle_7 || judge == JUDGETYPE.Cattle_8) return 2;
 		if(judge == JUDGETYPE.Cattle_9) return 3;
-		if(judge == JUDGETYPE.Double || (judge >= JUDGETYPE.Gold_1 && judge <= JUDGETYPE.Gold_9)) return 4;
+		if(judge == JUDGETYPE.Double || (judge >= JUDGETYPE.Gold_7 && judge <= JUDGETYPE.Gold_9)) return 4;
 		if(judge == JUDGETYPE.GoldDouble || judge == JUDGETYPE.Sequence) return 5;
 		if(judge == JUDGETYPE.Gourd) return 6;
 		if(judge == JUDGETYPE.Forty || judge == JUDGETYPE.Ten) return 7

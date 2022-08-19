@@ -28,24 +28,25 @@ Model.open().then(async ()=>{
         clientApi(server);
 		app.use(cors({
 			origin: function(origin, callback){
-				return callback(null, true)
+				return callback(null, true);
 			}
 		}))
-
+		app.use('/avatars', express.static(__dirname + '/../avatars/custom'));
+		app.use('/avatars', express.static(__dirname + '/../avatars/default'));
 		if (config.debug) {
-			app.use(express.json())
-			app.use(express.urlencoded())
+			app.use(express.json());
+			app.use(express.urlencoded());
 			const options = {
 				uploadDir: os.tmpdir(),
 				autoClean: true
 			}
 			app.use(formData.parse(options));
-			app.use('/rpc', clientRouter)
+			app.use('/rpc', clientRouter);
 		}
-		let time = +new Date()
-		await new Promise(resolve=>server.listen({ port: config.httpPort, host:'0.0.0.0' }, ()=>resolve(true)))
-		setlog(`Started HTTP service on port ${config.httpPort}. ${+new Date()-time}ms`)
-		return app
+		let time = +new Date();
+		await new Promise(resolve=>server.listen({ port: config.httpPort, host:'0.0.0.0' }, ()=>resolve(true)));
+		setlog(`Started HTTP service on port ${config.httpPort}. ${+new Date()-time}ms`);
+		return app;
 	} catch (error) {
 		setlog("init", error)
 		process.exit(1)

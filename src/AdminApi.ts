@@ -41,7 +41,7 @@ const admin_method_list = {
 		session.uid = user._id;
 		await setSession(cookie, session);
 		await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
-		return { result: user._id };
+		return { result: {uid: user._id, avatar: user.avatar, alias: user.alias} };
 	},
 	
 	"reset": async (con, cookie, session, ip, params)=>{
