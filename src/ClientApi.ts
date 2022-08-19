@@ -479,7 +479,7 @@ const method_list = {
 			// return {error: 20035}
 		}
 		const timestamp = now()
-		const _id = await getLastUID() + Math.round(Math.random() * 10)
+		const _id = await getLastUID() + 3;
 		await setLastUID(_id)
 
 		const avatar = Math.floor(Math.random() * 44) + 1;
