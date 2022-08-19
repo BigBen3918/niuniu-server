@@ -620,13 +620,17 @@ export class GameRound{
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
 					if(this.room.playerList[i] != undefined){
+						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[0].replace('{num}', String(this.secondTime))]});
 					}
 						
 				}
 				for(let i = 0; i < this.room.spectatorList.length; i++){
-					if(this.room.spectatorList[i] != undefined)
+					if(this.room.spectatorList[i] != undefined){
+						if(this.room.spectatorList[i].outBooking) continue
 						sendToClients([this.room.spectatorList[i].id], "banker-select-time", {result: [GAME_TEXT_TIMERS[0].replace('{num}', String(this.secondTime))]});
+					}
+						
 				}
 			}
 			if(this.secondTime < 0){
@@ -653,6 +657,7 @@ export class GameRound{
 				}
 				for(let i = 0; i < this.room.spectatorList.length; i++){
 					if(this.room.spectatorList[i] != undefined){
+						if(this.room.spectatorList[i].outBooking) continue
 						sendToClients([this.room.spectatorList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[1].replace('{num}', String(this.secondTime))]});
 					}
 						
@@ -672,11 +677,13 @@ export class GameRound{
 			if(this.secondTime >= 0){
 				for(let i = 0; i < 6; i++){
 					if(this.room.playerList[i] != undefined){
+						if(this.room.playerList[i].outBooking) continue
 						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[2].replace('{num}', String(this.secondTime))]});
 					}
 						
 				}
 				for(const spectator of this.room.spectatorList){
+					if(spectator.outBooking) continue
 					sendToClients([spectator.id], "banker-select-time", {result:[GAME_TEXT_TIMERS[2].replace('{num}', String(this.secondTime))]});
 				}
 			}
