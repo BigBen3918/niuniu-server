@@ -8,6 +8,7 @@ const db = client.db(config.database)
 
 export enum JUDGETYPE {
 	undefined = -1,
+<<<<<<< HEAD
 	None,                // 无牛                        牌型：五张牌中，任意3张牌的点数之和都不为10的整数倍
 	Cattle_1,        // 牛1                         有牛牌型：5张牌中有3张牌的点数之和为10的整数倍，另外2张牌的点数之和mod（10）等于几，即为牛几
 	Gold_1,                // 11 金牌牛                5张牌中有3张一样
@@ -34,6 +35,34 @@ export enum JUDGETYPE {
 	Ten,                // 15 十小                        无花中5张牌的点数相加之和小于等于10
 	Forty,                // 16 四十                        无花中5张牌的点数相加之和大于或者等于40
 	Bomb,                // 17 炸弹牛                5张牌中4张点数一样（ABBBB）
+=======
+	None,		// 无牛			牌型：五张牌中，任意3张牌的点数之和都不为10的整数倍
+	Cattle_1,	// 牛1 			有牛牌型：5张牌中有3张牌的点数之和为10的整数倍，另外2张牌的点数之和mod（10）等于几，即为牛几
+	Gold_1,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_2,	// 牛2
+	Gold_2,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_3,	// 牛3
+	Gold_3,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_4,	// 牛4
+	Gold_4,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_5,	// 牛5
+	Gold_5,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_6,	// 牛6
+	Gold_6,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_7,	// 牛7
+	Gold_7,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_8,
+	Gold_8,		// 11 金牌牛		5张牌中有3张一样
+	Cattle_9,	// 牛8
+	Gold_9,		// 11 金牌牛		5张牌中有3张一样
+	Double,		// 10 牛牛  		牌型：5张牌中有3张牌的点数之和为10的整数倍，并且，另外2张牌的点数之和为10的整数倍
+	GoldDouble,	// 12 金牌牛牛		5张牌中有3张一样，且两张之和为10
+	Sequence,	// 13 顺子			5张牌中的数字 为顺子（2，3，4，5，6）
+	Gourd,		// 14 葫芦牛		5张牌的牌型为 AABBB （3张一样的牌加2张一样的牌）
+	Ten,		// 15 十小			无花中5张牌的点数相加之和小于等于10
+	Forty,		// 16 四十			无花中5张牌的点数相加之和大于或者等于40
+	Bomb,		// 17 炸弹牛		5张牌中4张点数一样（ABBBB）
+>>>>>>> d68c2d814e2078e54ef64bf816de8dd05798c803
 }
 
 
@@ -69,18 +98,13 @@ export interface SchemaConfig {
 // 	created:			number
 // }
 
-// export interface SchemaAgent {
-// 	_id:				number
-// 	email:				string
-// 	username:			string
-// 	password:			string
-// 	balance:			number
-// 	ratio:				number
-// 	parents:			Array<{id: number, ratio: number}>
-// 	lastLogged:			number
-// 	updated:			number
-// 	created:			number
-// }
+export interface SchemaAgent {
+	_id:				number
+	parents:			Array<{id: number, ratio: number}>
+	pid:				number
+	ratio:				number
+	created:			number
+}
 
 export interface SchemaUser {
 	_id:				number
