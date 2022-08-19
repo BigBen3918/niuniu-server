@@ -68,18 +68,13 @@ export interface SchemaConfig {
 // 	created:			number
 // }
 
-// export interface SchemaAgent {
-// 	_id:				number
-// 	email:				string
-// 	username:			string
-// 	password:			string
-// 	balance:			number
-// 	ratio:				number
-// 	parents:			Array<{id: number, ratio: number}>
-// 	lastLogged:			number
-// 	updated:			number
-// 	created:			number
-// }
+export interface SchemaAgent {
+	_id:				number
+	parents:			Array<{id: number, ratio: number}>
+	pid:				number
+	ratio:				number
+	created:			number
+}
 
 export interface SchemaUser {
 	_id:				number

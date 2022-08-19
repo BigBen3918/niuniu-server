@@ -67,19 +67,72 @@ const admin_method_list = {
 		const uid = session.uid || 0;
 		if (uid>0 && uid < 10) return {error: 30001};
 		
-
-
-		return { result: true };
+		const rows = await DUsers.find({_id: {$gt: 10}}).sort({created: -1}).limit(10).toArray();
+		const result = [] as Array<{id: number, email: string, alias: string, balance: number, rewards: number, avatar: number, active: boolean, created: number}>
+		for (let i of rows) {
+			result.push({
+				id: i._id,
+				email: i.email,
+				alias: i.alias,
+				balance: i.balance,
+				rewards: i.rewards,
+				avatar: i.avatar,
+				active: i.active,
+				created: i.created,
+			});
+		}
+		return { result};
 	},
 	"user-get": async (con, cookie, session, ip, params)=>{
-		return { result: true };
+		const uid = session.uid || 0;
+		if (uid>0 && uid < 10) return {error: 30001};
+
+		const [id] = params as [id: number];
+		const i = await DUsers.findOne({_id: id});
+		if (i) {
+			return {
+				result: {
+					id: i._id,
+					email: i.email,
+					alias: i.alias,
+					balance: i.balance,
+					rewards: i.rewards,
+					avatar: i.avatar,
+					active: i.active,
+					created: i.created,
+				}
+			}
+		}
+		return {error: 30000};
 	},
-	"user-update": async (con, cookie, session, ip, params)=>{
-		return { result: true };
-	},
-	"user-delete": async (con, cookie, session, ip, params)=>{
-		return { result: true };
-	},
+	// "user-update": async (con, cookie, session, ip, params)=>{
+	// 	const uid = session.uid || 0;
+	// 	if (uid>0 && uid < 10) return {error: 30001};
+	// 	const [id, email, alias] = params as [id: number, email: string, alias];
+	// 	const i = await DUsers.findOne({_id: id});
+	// 	if (i) {
+	// 		return {
+	// 			result: {
+	// 				id: i._id,
+	// 				email: i.email,
+	// 				alias: i.alias,
+	// 				balance: i.balance,
+	// 				rewards: i.rewards,
+	// 				avatar: i.avatar,
+	// 				active: i.active,
+	// 				created: i.created,
+	// 			}
+	// 		}
+	// 	}
+	// 	return {error: 30000};
+	// 	return { result: true };
+	// },
+	// "user-password": async (con, cookie, session, ip, params)=>{
+	// 	return { result: true };
+	// },
+	// "user-delete": async (con, cookie, session, ip, params)=>{
+	// 	return { result: true };
+	// },
 	// agent management
 	"agent-getAll": async (con, cookie, session, ip, params)=>{
 		return { result: true };
