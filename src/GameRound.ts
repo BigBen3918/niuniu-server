@@ -741,16 +741,29 @@ export class GameRound{
 	}
 
 	getCardMultipler(judgeType:JUDGETYPE){
-		const judge = judgeType as number
-		/* if(judge == 0) return 1;
-		if(judge > 0 && judge < 7) return 1; */
-		if(judge == JUDGETYPE.Cattle_7 || judge == JUDGETYPE.Cattle_8) return 2;
-		if(judge == JUDGETYPE.Cattle_9) return 3;
-		if(judge == JUDGETYPE.Double || (judge >= JUDGETYPE.Gold_7 && judge <= JUDGETYPE.Gold_9)) return 4;
-		if(judge == JUDGETYPE.GoldDouble || judge == JUDGETYPE.Sequence) return 5;
-		if(judge == JUDGETYPE.Gourd) return 6;
-		if(judge == JUDGETYPE.Forty || judge == JUDGETYPE.Ten) return 7
-		if(judge == JUDGETYPE.Bomb) return 8;
+		const judge = judgeType as number;
+		switch(judge) {
+		case JUDGETYPE.Cattle_7:
+		case JUDGETYPE.Gold_7:		// 11 金牌牛
+		case JUDGETYPE.Cattle_8:
+		case JUDGETYPE.Gold_8:		// 11 金牌牛
+			return 2;
+		case JUDGETYPE.Cattle_9:	// 牛8
+		case JUDGETYPE.Gold_9:		// 11 金牌牛
+			return 3;
+		case JUDGETYPE.Double:		// 10 牛牛
+		case JUDGETYPE.GoldDouble:	// 12 金牌牛牛
+			return 4;
+		case JUDGETYPE.Sequence:	// 13 顺子
+			return 5;
+		case JUDGETYPE.Gourd:		// 14 葫芦牛
+			return 6;
+		case JUDGETYPE.Ten:		// 15 十小
+		case JUDGETYPE.Forty:		// 16 四十
+			return 7;
+		case JUDGETYPE.Bomb:		// 17 炸弹牛
+			return 8;
+		}
 		return 1;
 	}
 }
