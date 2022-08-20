@@ -108,6 +108,7 @@ export class GameRound{
 	}
 	
 	SendCurrentRoundData(uid:number){
+		if (this.room.step === GAMESTEP.End) return
 		let sendData : number[] = []
 		const room = this.room;
 		const players = room.playerList.filter((v)=>{
@@ -680,8 +681,9 @@ export class GameRound{
 			}
 		}
 
-		if(this.room.step == GAMESTEP.Result){
+		if(this.room.step == GAMESTEP.Result || this.room.step == GAMESTEP.End){
 			if(this.secondTime == 0){
+				this.room.step = GAMESTEP.End
 				this.sendToPlayers("end-round", {result:[0]})
 				const players = this.room.playerList
 				for(let i = 0; i < 6; i ++){

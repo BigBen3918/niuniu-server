@@ -621,7 +621,7 @@ const method_list = {
 			updateClient(con, { room: roomId, state: CLIENT_STATE.GAME });
 			let g: Boolean
 			g = await addPlayer(uid, roomId);
-			SendLobbyData()
+			//SendLobbyData()
 			if (g) {
 				await startRound(roomId)
 			}else{
@@ -677,6 +677,7 @@ const method_list = {
 
 		//rooms[roomId].playerList[uid] = undefined
 		const index = findPlayerById(uid, roomId)[0] as number
+		sendUserInfo(uid, false)
 		if (index > 5) {
 			delete rooms[roomId].spectatorList[index - 6];
 			rooms[roomId].spectatorList = rooms[roomId].spectatorList.filter((v) => {
@@ -686,7 +687,7 @@ const method_list = {
 			//await deleteRoom(-1)
 			broadcastEnterRoomData(roomId)
 		} else if (index <= 5 && index >= 0) {
-			if (rooms[roomId].step == GAMESTEP.Result || rooms[roomId].step == GAMESTEP.None) {
+			if (rooms[roomId].step == GAMESTEP.Result || rooms[roomId].step == GAMESTEP.None || rooms[roomId].step == GAMESTEP.End) {
 				rooms[roomId].playerList[index] = undefined;
 				updateClient(con, { state: CLIENT_STATE.LOBBY, room: 0 });
 				return decisionPlayType(roomId);
@@ -761,6 +762,7 @@ const method_list = {
 		});
 		// update all clients
 		sendUserInfo(uid, false)
+		sendUserInfo(otherId, false)
 		return { result: [0] }
 	},
 
@@ -999,12 +1001,6 @@ const decisionPlayType = async (roomId: number) => {
 	let playerCount = 0
 	const room = rooms[roomId]
 
-	const moveToSpectator = (player: UserType) => {
-		const a = room.playerList.indexOf(player)
-		room.playerList[a] = getPlayer()
-		room.spectatorList.push(player)
-	}
-
 	const getPlayer = () => {
 		let newPlayer: UserType
 		for (const spectator of room.spectatorList) {
@@ -1029,8 +1025,8 @@ const decisionPlayType = async (roomId: number) => {
 				const row = await DUsers.findOne({ _id: player.id })
 				if (row) {
 					if (Number(row.balance) < room.antes) {
-						moveToSpectator(player);
-						console.log(room)
+						room.spectatorList.push(player)
+						room.playerList[index] = getPlayer();
 					} else {
 						playerCount++
 					}

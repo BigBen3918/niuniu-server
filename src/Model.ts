@@ -44,7 +44,8 @@ export enum GAMESTEP {
 	DecideRanker,		// 选择抢庄倍数
 	MultiplierSelect,	// 选择倍数
 	ShowCard,			// 亮牌
-	Result,				// 结果
+	Result,	
+	End,			// 结果
 }
 
 export enum GAMERULE {
