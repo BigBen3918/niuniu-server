@@ -193,6 +193,8 @@ const readAvatar = (avatarId: number) => {
 	return avatar
 }
 
+export const getRooms = () => rooms;
+
 clientRouter.post("/",async (req:express.Request, res:express.Response)=>{
 	const { jsonrpc, method, params, id } = req.body as RpcRequestType
 	let response = {} as {error?:number, result?:any}
