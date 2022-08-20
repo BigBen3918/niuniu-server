@@ -510,7 +510,7 @@ const method_list = {
 	},
 
 	"login": async (con, cookie, session, ip, params) => {
-		return
+		return false
 		const [email, password] = params as [email: string, password: string];
 		if (!validateEmail(email)) return { error: 20000 };
 		if (password.length < 6 || password.length > 32) return { error: 20004 };
