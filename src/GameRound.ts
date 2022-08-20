@@ -138,21 +138,6 @@ export class GameRound{
 		sendToClients([uid], "current-round-data", {result:sendData});
 	}
 
-	async onReadyRoundACK(uid:number){
-		if(this.room.step != GAMESTEP.Ready && this.room.playerList) return;
-		this.findByUid(uid).isReady = true;
-		const players = this.room.playerList
-		let allReady = true
-		for(let i = 1; i < 6; i++){
-			if(players[i] == undefined) continue
-			if(!players[i].isReady && !players[i].outBooking){
-				allReady = false
-			}
-		}
-		if(allReady)
-			await this.startRound();
-	}
-
 	onSetRobBanker(uid:number, robBanker:number){
 		this.findByUid(uid).robBanker = robBanker
 		const sendData : number[] = []

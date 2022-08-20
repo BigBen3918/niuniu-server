@@ -37,6 +37,7 @@ import { Semaphore } from 'async-mutex';
 
 const maxConcurrentRequests = 1;
 const semaphore = new Semaphore(maxConcurrentRequests);
+const disconnectTasks = new Semaphore(maxConcurrentRequests);
 
 const locals = {
 	'en-US': enUS,
@@ -164,31 +165,33 @@ const updateClient = (con: websocket.connection, attrs: Partial<ClientInfo>) => 
 	if (v) clients.set(con, { ...v, ...attrs });
 }
 
-const removeClient = (con: websocket.connection) => {
-	const v = clients.get(con);
-	if (v && v.room != 0) {
-		const room = rooms[v.room]
-		const player = findPlayerById(v.uid, v.room)[1] as UserType;
-		const index = findPlayerById(v.uid, v.room)[0] as number;
-		if (index !== -1) {
-			if (index < 6) {
-				if (room.step == GAMESTEP.None) {
-					room.playerList[index] = undefined
-					decisionPlayType(v.room);
+const removeClient = async (con: websocket.connection) => {
+	return await disconnectTasks.runExclusive(async () => {
+		const v = clients.get(con);
+		if (v && v.room != 0) {
+			const room = rooms[v.room]
+			const player = findPlayerById(v.uid, v.room)[1] as UserType;
+			const index = findPlayerById(v.uid, v.room)[0] as number;
+			if (index !== -1) {
+				if (index < 6) {
+					if (room.step == GAMESTEP.None) {
+						room.playerList[index] = undefined
+						decisionPlayType(v.room);
+					} else {
+						player.outBooking = true;
+					}
 				} else {
-					player.outBooking = true;
+					delete room.spectatorList[index - 6];
+					room.spectatorList = room.spectatorList.filter((v) => {
+						if (v != undefined) return true
+					})
+					updateClient(con, { state: CLIENT_STATE.LOBBY, room: 0 });
 				}
-			} else {
-				delete room.spectatorList[index - 6];
-				room.spectatorList = room.spectatorList.filter((v) => {
-					if (v != undefined) return true
-				})
-				updateClient(con, { state: CLIENT_STATE.LOBBY, room: 0 });
 			}
 		}
-	}
-	//if (v) delete clientById[v.uid];
-	clients.delete(con);
+		//if (v) delete clientById[v.uid];
+		clients.delete(con);
+	})
 }
 
 const readAvatar = (avatarId: number) => {
@@ -267,11 +270,6 @@ export const Actions = {
 	},
 
 	onDisconnect(con: websocket.connection, cookie: string) {
-		setlog(`deleted socket ${cookie}`, '', true)
-		removeClient(con)
-	},
-
-	onError(con: websocket.connection, cookie: string) {
 		setlog(`deleted socket ${cookie}`, '', true)
 		removeClient(con)
 	},
@@ -427,11 +425,6 @@ export const sendToClientsWithStat = (state: CLIENT_STATE, method: CommandType, 
 export const sendToClients = (ids: number[] | websocket.connection, method: CommandType, args: {}) => {
 	const aes = new AES()
 	if (Array.isArray(ids)) {
-		// for(const [key, value] of clients.entries()){
-		// 	if(value.state == CLIENT_STATE.LOBBY){
-		// 		sendToClients(key, "enter-lobby", {result:getLobbyPageSummary(value.lobby)})
-		// 	}
-		// }
 		for (let i of ids) {
 			const con = clientById(i);
 			if (con) {
@@ -454,9 +447,6 @@ const method_list = {
 		if (!validateEmail(email)) return { error: 20001 };
 		const user = await DUsers.findOne({ email });
 		if (user !== null) return { error: 10000 };
-
-		// if (user.password!==WebCrypto.hash(password)) return {error: ERROR.LOGING_PASSWORD_INVALID}
-		//if (user.active===false) return { error: ERROR.LOGING_NO_ACTIVE};
 		const code = generateCode();
 		const subject = L["email.register.subject"];
 		const content = L["email.register.content"];
@@ -471,9 +461,6 @@ const method_list = {
 			console.log('failed to send email code', email);
 			return { error: 10319 };
 		}
-
-
-		// return { result: true };
 	},
 
 	"register": async (con, cookie, session, ip, params) => {
@@ -532,13 +519,7 @@ const method_list = {
 		if (user.active === false) return { error: 20006 };
 		session.uid = user._id;
 		sendUserInfo(user._id, true)
-		//const avatar = readAvatar(user.avatar);
 		await setSession(cookie, session);
-		//const poolUser = await DPool.findOne({_id: user._id});
-		//const exp = poolUser===null ? 0 : poolUser.earns;
-		//const notice = await getSysNotice();
-
-		//const result = [user.alias, user._id, user.balance, exp, avatar, notice]
 		await DUsers.updateOne({ _id: user._id }, { $set: { lastLogged: now(), loginCount: user.loginCount + 1 } });
 
 
@@ -552,15 +533,6 @@ const method_list = {
 		const user = await DUsers.findOne({ email });
 		if (user === null) return { error: 10000 };
 		if (user.active === false) return { error: 20006 };
-		// session.uid = user._id;
-		// await setSession(cookie, session);
-		// // const result = {
-		// // 	uid:			user._id,
-		// // 	lastLogin: 		user.lastLogged
-		// // }
-		// const result = [user.alias, user._id, user.balance, user.exp, user.avatar]
-		// await DUsers.updateOne({_id: user._id}, {$set: {lastLogged: now(), loginCount: user.loginCount + 1}});
-		// updateClient(con, {uid: user._id, room:0, state: CLIENT_STATE.GAEM_SELECT});
 		return { result: true };
 	},
 
@@ -596,7 +568,6 @@ const method_list = {
 			const avatar = readAvatar(row.avatar);
 
 			lastRoomId = lastRoomId + Math.ceil(Math.random() * 10);
-			const test = Object.keys(rooms)
 			const timestamp = now()
 			rooms[lastRoomId] = {
 				id: lastRoomId,
@@ -629,62 +600,10 @@ const method_list = {
 				maxPlayer: 32,
 				gameRound: {}
 			}
-			//const testClass = new GameRound({room:rooms[lastRoomId]})
-			//rooms[lastRoomId].gameRound = testClass;
+
 			updateClient(con, { room: lastRoomId, state: CLIENT_STATE.GAME });
 			SendLobbyData()
 			SendEnterRoomData(uid, lastRoomId, 0)
-			return { result: true };
-		}
-		return { result: false };
-	},
-
-	"test-create-room": async (con, cookie, session, ip, params) => {
-		let [uid, antes] = params as [testUid: number, antes: number]
-		const rule = 0
-		antes = parseFloat(antes.toString())
-		uid = parseInt(uid.toString())
-		const row = await DUsers.findOne({ _id: uid });
-		if (row) {
-			const alias = row.alias;
-			const avatar = readAvatar(row.avatar);
-			const balance = Number(row.balance)
-			lastRoomId = lastRoomId + Math.ceil(Math.random() * 10);
-			const timestamp = now()
-			rooms[lastRoomId] = {
-				id: lastRoomId,
-				roundId: 0,
-				rule,
-				antes,
-				step: GAMESTEP.None,// game step
-				bankerId: -1,	// = player.id, if zero, no selected banker
-				playerList: [{
-					id: uid,
-					isReady: false,
-					alias,
-					balance,
-					avatar,
-					cardFilped: false,
-					cardList: [],
-					robBanker: -1,		// 任何人可以抢庄，按照1，2，3，4倍数抢。选择倍数最高的玩家成为庄家, if zero, never 抢庄
-					multiplier: -1,		// affected by win bonus or loss, value in 1 ~ 4
-					showManual: false,		// 亮牌模式， 若真, 搓牌模式，若否，亮牌模式
-					judge: JUDGETYPE.undefined,	// 牌型
-					cardPower: -1,
-					earns: [],
-					loss: [],
-					restCards: [],
-					outBooking: false
-				}, undefined, undefined, undefined, undefined, undefined],
-				spectatorList: [],
-				updated: timestamp,
-				created: timestamp,
-				maxPlayer: 32,
-				gameRound: {}
-			}
-			//const testClass = new GameRoom({room:rooms[lastRoomId]})
-			//updateClient(con, {room: lastRoomId});
-			SendLobbyData()
 			return { result: true };
 		}
 		return { result: false };
@@ -702,42 +621,17 @@ const method_list = {
 			updateClient(con, { room: roomId, state: CLIENT_STATE.GAME });
 			let g: Boolean
 			g = await addPlayer(uid, roomId);
-			await deleteRoom(-1)
-			broadcastEnterRoomData(roomId)
-			// deleteRoom(-1)
 			SendLobbyData()
 			if (g) {
 				await startRound(roomId)
+			}else{
+				broadcastEnterRoomData(roomId)
+				if(rooms[roomId].step !== GAMESTEP.None){
+					rooms[roomId].gameRound.SendCurrentRoundData(uid);
+				}
+				
 			}
 		});
-	},
-
-	"test-join-room": async (con, cookie, session, ip, params) => {
-		let [uId, roomId] = params as [uId: number, roomId: number];
-		const uid = parseInt(uId.toString())
-		roomId = parseInt(roomId.toString())
-
-		if (uid === undefined) return { error: 20100 };
-		if (rooms[roomId] === undefined) return;
-		//updateClient(con, {room: roomId, state: CLIENT_STATE.GAME_READY});
-		let g: Boolean
-		g = await addPlayer(uid, roomId);
-		//for delay
-		//await deleteRoom(-1)
-		broadcastEnterRoomData(roomId)
-		//await deleteRoom(-1)
-		SendLobbyData()
-		if (g) await startRound(roomId)
-	},
-	"ready-round": async (con, cookie, session, ip, params) => {
-		let [roomId] = params as [roomId: number]
-		const uid = session.uid;
-		if (uid === undefined) return { error: 20100 };
-		rooms[roomId].gameRound.onReadyRoundACK(uid)
-		// const result = await GameModel.setRobBanker(roomId, uid, robBanker)
-		// // notify room
-		// sendToClients([], "game_setRobBanker", [String(uid)]);
-		// return { result }
 	},
 
 	"set-robBanker": async (con, cookie, session, ip, params) => {
@@ -748,11 +642,6 @@ const method_list = {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
 		rooms[roomId].gameRound.onSetRobBanker(uid, robBanker)
-
-		// const result = await GameModel.setRobBanker(roomId, uid, robBanker)
-		// // notify room
-		// sendToClients([], "game_setRobBanker", [String(uid)]);
-		// return { result }
 	},
 
 	"set-multiplier": async (con, cookie, session, ip, params) => {
@@ -763,9 +652,6 @@ const method_list = {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
 		rooms[roomId].gameRound.onSetMultiplier(uid, multiplier)
-		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
-		// return { result }
 	},
 
 	"filp-card": async (con, cookie, session, ip, params) => {
@@ -782,9 +668,6 @@ const method_list = {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
 		rooms[roomId].gameRound.onFilpOneCard(uid)
-		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
-		// return { result }
 	},
 
 	"leave-room": async (con, cookie, session, ip, params) => {
@@ -812,10 +695,6 @@ const method_list = {
 				return { error: 20101 };
 			}
 		}
-
-		//const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
-		// return { result }
 	},
 
 	"get-exps": async (con, cookie, session, ip, params) => {
@@ -890,8 +769,6 @@ const method_list = {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
 		const rows = await DSendMoneyHistory.find({ $or: [{ to_uid: uid, to_updated: 0 }, { from_uid: uid, from_updated: 0 }] }).sort({ created: 1 }).toArray();
-		//await DSendMoneyHistory.updateMany({to_uid:uid, to_updated: 0}, {$set: {to_updated: now()}});
-		//await DSendMoneyHistory.updateMany({from_uid:uid, from_updated: 0}, {$set: {from_updated: now()}});
 		const result = []
 		result.push(rows.length)
 		rows.forEach(row => {
@@ -939,9 +816,6 @@ const method_list = {
 			updated: 0,	// 读取时间
 			created: now()	// 发送时间
 		})
-		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
-		// const result = await GameModel.setMultiplier(roomId, uid, multiplier)
-		// sendToClients([], "game_setMutiplier", [String(uid)]);
 		return { result: false };
 	},
 
@@ -950,18 +824,11 @@ const method_list = {
 		if (uid === undefined) return { error: 20100 };
 		const rows = await DMsg.find({ uid, updated: 0 }).sort({ created: 1 }).toArray()
 		await DMsg.updateMany({ uid, updated: 0 }, { $set: { updated: now() } });
-
-		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
-
 		return { result: false };
 	},
 	"get-downloadlink": async (con, cookie, session, ip, params) => {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
-		// const rows = await DMsg.find({uid, updated: 0}).sort({created: 1}).toArray()
-		// await DMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
-
-		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 		const result = []
 		result.push("https://niuniu.deamchain.com/niuniu_0.1.0.apk")
 		return { result };
@@ -969,10 +836,6 @@ const method_list = {
 	"get-backendlink": async (con, cookie, session, ip, params) => {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
-		// const rows = await DMsg.find({uid, updated: 0}).sort({created: 1}).toArray()
-		// await DMsg.updateMany({uid, updated: 0}, {$set: {updated: now()}});
-
-		// updateClient(con, {state: CLIENT_STATE.LOBBY, room: 0});
 		const result = []
 		result.push("https://niuniu.deamchain.com/client/login")
 		return { result };
@@ -1003,16 +866,7 @@ const method_list = {
 		sendUserInfo(uid, false)
 		return { result: true };
 	},
-	/* "get-payment": async (con, cookie, session, ip, params)=>{
-		let [ type ] = params as [type: "bank"|"alipay"];
-		const uid = session.uid;
-		if (uid===undefined) return {error: 20100};
-		const w = await DWithdraws.findOne({$query: {uid, type}, $orderby: {$created : -1}});
-		if (w!==null) {
-			return {result: [type, w.bank, w.account, w.owner]};
-		}
-		return {result: []};
-	}, */
+
 	"set-withdraw": async (con, cookie, session, ip, params) => {
 		const [type, bank, account, owner, quantity] = params as [type: "bank" | "alipay", bank: string, account: string, owner: string, quantity: string];
 		const uid = session.uid;
@@ -1039,12 +893,11 @@ const method_list = {
 		sendUserInfo(uid, false);
 		return { result: ["0"] };
 	},
+
 	"get-withdraw": async (con, cookie, session, ip, params) => {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
 		const rows = await DWithdraws.find({ uid }).sort({ created: -1 }).limit(20).toArray();
-		//await DSendMoneyHistory.updateMany({to_uid:uid, to_updated: 0}, {$set: {to_updated: now()}});
-		//await DSendMoneyHistory.updateMany({from_uid:uid, from_updated: 0}, {$set: {from_updated: now()}});
 		const result = []
 		result.push(rows.length)
 		rows.forEach(row => {
@@ -1056,6 +909,7 @@ const method_list = {
 		});
 		return { result }
 	},
+
 	"update-avata": async (con, cookie, session, ip, params) => {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
@@ -1071,14 +925,7 @@ const method_list = {
 		sendUserInfo(uid, true);
 		return { result: [0] };
 	},
-	// "update-alias": async (con, cookie, session, ip, params)=>{
-	// 	const uid = session.uid;
-	// 	if (uid===undefined) return {error: 20100};
-	// 	const [ alias ] = params as [alias: string];
-	// 	await DUsers.updateOne({_id: uid}, { $set: {alias: alias}})
-	// 	sendUserInfo(uid, false);
-	// 	return {result: [0]};
-	// },
+	
 	"update-password": async (con, cookie, session, ip, params) => {
 		const uid = session.uid;
 		if (uid === undefined) return { error: 20100 };
@@ -1095,8 +942,6 @@ const method_list = {
 } as {
 	[method: string]: (con: websocket.connection, cookie: string, session: SessionType, ip: string, params: Array<any>) => Promise<ServerResponse>
 }
-
-
 
 const SendLobbyData = () => {
 	const lobbyUser = {} as { con: websocket.connection, page: number }
@@ -1174,26 +1019,6 @@ const decisionPlayType = async (roomId: number) => {
 		return newPlayer
 	}
 
-	// if (room.step == GAMESTEP.None) {
-	// 	for(let i = 0; i < 6; i++){
-	// 		const player = room.playerList[i];
-	// 		if(player == undefined){
-	// 			room.playerList[i] = getPlayer();
-	// 		}else{
-	// 			const row = await DUsers.findOne({ _id : player.id })
-	// 			if(row){
-	// 				if(Number(row.balance) < room.antes){
-	// 					moveToSpectator(player);
-	// 					console.log(room)
-	// 				}else{
-	// 					playerCount ++
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// } else {
-	// 	return false
-	// }
 	if (room.step == GAMESTEP.None) {
 		let index = 0;
 		for (let player of room.playerList) {
@@ -1227,19 +1052,12 @@ const decisionPlayType = async (roomId: number) => {
 		room.step = GAMESTEP.Ready;
 		return true;
 	}
-	//await deleteRoom(-1)
+
 	SendLobbyData()
 	return false
 
 }
 
-// const startRound = async (roomId:number) => {
-// 	const room = rooms[roomId];
-// 	room.roundId = await getLastRoundId() + 1;
-// 	await setLastRoundId(room.roundId);
-// 	const gameRound = new GameRound({room: room})
-// 	room.gameRound = gameRound
-// }
 export const startRound = async (roomId: number) => {
 	const room = rooms[roomId]
 	room.step = GAMESTEP.None
@@ -1260,19 +1078,15 @@ export const startRound = async (roomId: number) => {
 		room.playerList[i].restCards = []
 	}
 	const playable = await decisionPlayType(roomId);
-	//await deleteRoom(-1)
 	broadcastEnterRoomData(roomId)
 	if (playable) {
-		//await deleteRoom(-1)
 		SendLobbyData()
-		//await deleteRoom(-1)
 		const room = rooms[roomId];
 		room.roundId = await getLastRoundId() + 1;
 		await setLastRoundId(room.roundId);
 		const gameRound = new GameRound();
 		gameRound.initialize({ room: room });
 		room.gameRound = gameRound;
-		//await startRound(roomId)
 	}
 }
 const broadcastEnterRoomData = (roomId: number) => {
@@ -1312,46 +1126,8 @@ const SendEnterRoomData = (id: number, roomId: number, position: number) => {
 		enterRoomData.push(room.playerList[i].avatar)
 		enterRoomData.push(room.playerList[i].balance)
 	}
-	//testCode!!(need delete)
-	// for(let i = 0; i < 6; i++){
-	// 	if(room.playerList[i] == undefined){
-	// 		enterRoomData.push(0)
-	// 		enterRoomData.push(0)
-	// 		enterRoomData.push(0)
-	// 		continue
-	// 	}
-	// 	enterRoomData.push(room.playerList[i].alias)
-	// 	//for(let i = 0; i < 30; i++){
-	// 		enterRoomData.push(room.playerList[i].avatar)
-	// 	//}
-
-	// 	enterRoomData.push(room.playerList[i].balance)
-	// }
 	sendToClients([id], "enter-room-data", { result: enterRoomData })
 }
-
-// const createRoom = (rule:number, antes:number) => {
-// 	lastRoomId = lastRoomId + Math.ceil(Math.random()*10);
-// 	const timestamp = now()
-// 	let roomId = lastRoomId
-// 	rooms[lastRoomId] = {
-// 		id: 				roomId,
-// 		roundId:			0,
-// 		rule,
-// 		antes,
-// 		step:				GAMESTEP.Created,// game step
-// 		bankerId:			0,	// = player.id, if zero, no selected banker
-// 		playerList: 		[undefined, undefined, undefined, undefined, undefined, undefined],
-// 		spectatorList:		[],
-// 		updated:			timestamp,
-// 		created:			timestamp,
-// 		maxPlayer:          30,
-// 		gameRound:			{}
-// 	}
-// 	// setTimeout(function(){
-// 	// 	decisionPlayType(roomId)
-// 	// }, 2)
-// }
 
 const addPlayer = async (uid: number, roomId: number) => {
 	const room = rooms[roomId]
@@ -1380,50 +1156,19 @@ const addPlayer = async (uid: number, roomId: number) => {
 		});
 		if (room.step == GAMESTEP.None) {
 			return decisionPlayType(roomId)
-		} else {
-			//neet test 
-			await deleteRoom(-1)
-			//neet test 
-			room.gameRound.SendCurrentRoundData(uid);
 		}
-		return false
 	}
 	return false
-
 }
 
 export const deleteRoom = async (id: number) => {
-	//await deleteRoom = asysc() => {Promise<void>(delete rooms[id])}
 	return new Promise<void>((resolve) => {
 		setTimeout(resolve, 200);
 		delete rooms[id]
 	})
 }
 
-
-// const deletPlayer = ( uid:number, roomId:number) => {
-// 	const room = rooms[roomId]
-// 	for(const player of room.playerList){
-// 		if(room.step == GAMESTEP.Created || GAMESTEP.Ready || player.id == uid){
-// 			room.playerList.splice(room.playerList.indexOf(player), 1)
-// 			decisionPlayType(roomId);
-// 			return true
-// 		}
-// 	}
-// 	for(const spectator of room.spectatorList){
-// 		if(room.step == GAMESTEP.Created || GAMESTEP.Ready || spectator.id == uid){
-// 			room.spectatorList.splice(room.spectatorList.indexOf(spectator), 1)
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
 const getLobbyPageSummary = (page: number) => {
-	//6 rooms per page(from  0 page)
-	// if(Object.keys(rooms).length <= page * 6){
-	// 	return ["0"]
-	// }
 	let pageRoomData = []
 	//count of lobby room
 	const lobbyRoomCount = Math.floor((Object.keys(rooms).length - 1) / 6 + 1)
@@ -1447,7 +1192,6 @@ const getLobbyPageSummary = (page: number) => {
 	pageRoomData.push(roomCount.toString())
 	for (let i = page * 6; i < page * 6 + roomCount; i++) {
 		pageRoomData = pageRoomData.concat(getLobbyRoomSummary(parseInt(Object.keys(rooms)[i])))
-		//const test = getLobbyRoomSummary(parseInt(Object.keys(rooms)[i]));
 	}
 	return pageRoomData
 }
