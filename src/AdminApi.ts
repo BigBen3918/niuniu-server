@@ -1,5 +1,5 @@
 import * as websocket from 'websocket'
-import { DUsers } from "./Model";
+import { DAgents, DUsers } from "./Model";
 import { now, validateEmail } from "./utils/helper";
 import { setSession } from "./utils/Redis";
 import WebCrypto from "./utils/WebCrypto";
@@ -134,13 +134,49 @@ const admin_method_list = {
 	// 	return { result: true };
 	// },
 	// agent management
+
 	"agent-getAll": async (con, cookie, session, ip, params)=>{
-		return { result: true };
-	},
-	"agent-get": async (con, cookie, session, ip, params)=>{
-		return { result: true };
+		const uid = session.uid || 0;
+		if (uid===0) return {error: 30000};
+		const result = [] as Array<{id: number, email: string, ratio: number}>;
+		const rows = await DAgents.find({pid: uid}).limit(100).toArray();
+		if (rows.length) {
+			const users = await DUsers.find({_id: {$in: rows.map(i=>i._id)}}, {projection: {email: 1}}).toArray();
+			const us = {} as {[id: number]: {email: string}}
+			for (let i of users) {
+				us[i._id] = {
+					email: i.email
+				}
+			}
+			for (let i of rows) {
+				if (us[i._id]!==undefined) {
+					result.push({
+						id: i._id,
+						email: us[i._id].email,
+						ratio: i.ratio
+					})
+				}
+			}
+		}
+		return { result };
 	},
 	"agent-update": async (con, cookie, session, ip, params)=>{
+		const uid = session.uid || 0;
+		if (uid===0) return {error: 30000};
+		const [id, ratio] = params as [id: Number, ratio: number];
+
+		const rows = await DAgents.find({pid: uid}).limit(100).toArray();
+		
+		// Split total should never exceed 70% 
+		let total = ratio;
+		for (let i of rows) {
+			if (i._id!==id) {
+				total += i.ratio;
+			}
+		}
+		if (total > 0.7) return {error: 30002};
+		// add or 
+
 		return { result: true };
 	},
 	"agent-delete": async (con, cookie, session, ip, params)=>{

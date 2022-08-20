@@ -15,6 +15,7 @@
 
 	"error.30000": "not found",
 	"error.30001": "Admin only",
+	"error.30002": "invalid parameter",
 	
 	"error.32700": "Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.",
 	"error.32600":	"The JSON sent is not a valid Request object.",
