@@ -629,7 +629,6 @@ const method_list = {
 				if(rooms[roomId].step !== GAMESTEP.None){
 					rooms[roomId].gameRound.SendCurrentRoundData(uid);
 				}
-				
 			}
 		});
 	},
