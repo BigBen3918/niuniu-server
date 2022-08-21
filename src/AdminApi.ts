@@ -250,7 +250,17 @@ const admin_method_list = {
 	// room management
 	"room-getAll": async (con, cookie, session, ip, params)=>{
 		const rooms = getRooms();
-		return { result: true };
+		const result = [] as Array<{id: number, antes: number, users: Array<{uid: number, avatar: number}>, spectators: number}>;
+		for (let k in rooms) {
+			const room = rooms[k];
+			result.push({
+				id: room.id,
+				antes: room.antes,
+				users: room.playerList.map(i=>({uid: i.id, avatar: 0})),
+				spectators: room.spectatorList.length
+			})
+		}
+		return { result};
 	},
 } as {
 	[method:string]:(con: websocket.connection, cookie:string, session:SessionType, ip:string, params:Array<any>)=>Promise<ServerResponse>
