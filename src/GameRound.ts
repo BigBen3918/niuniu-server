@@ -8,7 +8,9 @@ const MAX_CARD = 5;
 const GAME_TEXT_TIMERS = [
 	"请选择抢庄倍数：{num}秒",
 	"请等待其他玩家选择倍数：{num}秒",
-	"请等待其他玩家亮牌：{num}秒"
+	"请等待其他玩家亮牌：{num}秒",
+	"left-num：{num}秒",
+
 ]
 
 
@@ -797,6 +799,19 @@ export class GameRound{
 		}
 
 		if(this.room.step == GAMESTEP.Result || this.room.step == GAMESTEP.End){
+			if(this.secondTime >= 0){
+				for(let i = 0; i < 6; i++){
+					if(this.room.playerList[i] != undefined){
+						if(this.room.playerList[i].outBooking) continue
+						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[3].replace('{num}', String(this.secondTime))]});
+					}
+						
+				}
+				for(const spectator of this.room.spectatorList){
+					if(spectator.outBooking) continue
+					sendToClients([spectator.id], "banker-select-time", {result:[GAME_TEXT_TIMERS[3].replace('{num}', String(this.secondTime))]});
+				}
+			}
 			if(this.secondTime == 0){
 				this.room.step = GAMESTEP.End
 				this.sendToPlayers("end-round", {result:[0]})
