@@ -9,7 +9,7 @@ const GAME_TEXT_TIMERS = [
 	"请选择抢庄倍数：{num}秒",
 	"请等待其他玩家选择倍数：{num}秒",
 	"请等待其他玩家亮牌：{num}秒",
-	"left-num：{num}秒",
+	"下局开始剩余{num}秒"
 
 ]
 
