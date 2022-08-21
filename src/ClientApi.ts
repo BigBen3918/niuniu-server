@@ -716,6 +716,26 @@ const method_list = {
 		}
 		return { result }
 	},
+
+	"get-spectators": async (con, cookie, session, ip, params) => {
+		const [roomId] = params as [roomId: string]
+		const uid = session.uid;
+		if (uid === undefined) return { error: 20100 };
+		if(rooms[parseInt(roomId)] === undefined ) return false
+		const room = rooms[parseInt(roomId)]
+		const result = [] as string[];
+		result.push(room.spectatorList.length.toString())
+		
+		for(const i of room.spectatorList){
+			const row = await DUsers.findOne({_id : i.id})
+			result.push(String(row._id))
+			result.push(row.alias)
+			result.push(readAvatar(row.avatar))
+			result.push(String(row.balance));
+		}
+		return { result }
+	},
+
 	"send-coin": async (con, cookie, session, ip, params) => {
 		let [userid, amount] = params as [userid: string, amount: string];
 		const uid = session.uid;
