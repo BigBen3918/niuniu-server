@@ -799,11 +799,11 @@ export class GameRound{
 		}
 
 		if(this.room.step == GAMESTEP.Result || this.room.step == GAMESTEP.End){
-			if(this.secondTime >= 0){
+			if(this.secondTime >= -2){
 				for(let i = 0; i < 6; i++){
 					if(this.room.playerList[i] != undefined){
 						if(this.room.playerList[i].outBooking) continue
-						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[3].replace('{num}', String(this.secondTime))]});
+						sendToClients([this.room.playerList[i].id], "banker-select-time", {result:[GAME_TEXT_TIMERS[3].replace('{num}', String(this.secondTime + 2))]});
 					}
 						
 				}
