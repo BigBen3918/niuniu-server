@@ -11,6 +11,14 @@
             "program": "${workspaceFolder}/src/app.ts",
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "test",
+            "program": "${workspaceFolder}/src/test.ts",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"]
         }
     ]
 }

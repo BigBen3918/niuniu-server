@@ -3,8 +3,8 @@ const round = new GameRound();
 
 describe('testing api', () => {
   test('bank', () => {
-    const result = round.getJudge([0,9,18,26,8]);
+    const result = round.getJudge([1,2,3,4,5]);
     console.log(result)
-    // expect(result).toBe([15, 0]);
+    expect(result[0]).toBe(21);
   });
 });

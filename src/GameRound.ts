@@ -251,7 +251,7 @@ export class GameRound{
 		let sendData : number[] = []
 		let processing : boolean = false
 		if( this.findByUid(uid).cardList[4] == -1) this.findByUid(uid).cardList[4] = (this.cards.shift())
-		const result = await this.getJudge(this.findByUid(uid).cardList)
+		const result = this.getJudge(this.findByUid(uid).cardList)
 		deleteRoom(-1)
 		this.findByUid(uid).cardFilped = true 
 		this.findByUid(uid).judge = result[0]
@@ -335,41 +335,36 @@ export class GameRound{
 			this.sendToPlayers("game-result", {result:sendData})
 		}
 	}
-
-	async getJudge(cards:number[]){
-		//cards = [0,9,3,30,18]
-		if(cards.find(e=>e == -1))
-			return [JUDGETYPE.undefined, -1]
+	getJudge(cards:number[]) {
+		//cards = [0,1,2,3,4]
+		if(cards.find(e=>e == -1)) return [JUDGETYPE.undefined, -1]
 		const tmp = {} as {[n: number]: number}
-		let sortedArray : number[] = []
-		for(let i = 0; i < 5; i++){
-			sortedArray[i] = (cards[i]+1)%9
-			if(sortedArray[i] == 0) sortedArray[i] = 9
-		}
-		sortedArray = sortedArray.sort((a, b)=>(a - b))
-		
-		let dups = 0, cardPower = 0;
+		let sortedArray = [] as Array<{n: number, org: number}>;
+		let sum = 0, dups = 0, cardPower = 0;
 		{
+			for(let i = 0; i < 5; i++) {
+				cardPower += Math.floor((cards[i] + 1) / 10)
+				sortedArray[i] = {n: (cards[i] % 9) + 1, org: cards[i]};
+				sum += sortedArray[i].n;
+			}
+			sortedArray = sortedArray.sort((a, b)=>(a.n - b.n));
+	
 			for (let i of sortedArray) {
-				cardPower += Math.floor((i - 1) / 10)
-				if (tmp[i]===undefined) {
-					tmp[i] = 1;
+				if (tmp[i.n]===undefined) {
+					tmp[i.n] = 1;
 				} else {
-					tmp[i]++;
+					tmp[i.n]++;
 				}
 			}
 			for (let k in tmp) {
 				if (tmp[k] > dups) dups = tmp[k];
 			}
 		}
+	
 		{ // 炸弹牛
 			if (dups===4) return [JUDGETYPE.Bomb, cardPower];
 		}
 		{ // 四十 or 十小
-			let sum = 0;
-			for (let i of sortedArray) {
-				sum += i;
-			}
 			if (sum >= 40) return [JUDGETYPE.Forty, cardPower];
 			if (sum <= 10) return [JUDGETYPE.Ten, cardPower];
 		}
@@ -406,87 +401,204 @@ export class GameRound{
 			let isSequence = true;
 			let prev = 0;
 			for (let i of sortedArray) {
-				if (prev===0) {
-					prev = i;
-				} else if (prev + 1!==i) {
+				if (prev!==0 && prev + 1!==i.n) {
 					isSequence = false;
 					break;
 				}
+				prev = i.n;
 			}
 			if (isSequence) return [JUDGETYPE.Sequence, cardPower];
 		}
 		{ // find cattle
-			const getCardNumber = (card : number) => {
-				card = (card+1)%9
-				if(card == 0) card = 9
-				return card
-			}
-			const buffer  = Object.assign([], cards);//cards
-			for(let i = 0; i < 5; i++){
-				const num1 = buffer[i]
-				const buffer1 = buffer.slice(i+1, 5)
-				for(let k = 0; k < 4; k ++){
-					const num2 = buffer1[k]
-					const buffer2 = buffer1.slice(k+1, 4)
-					for(let m = 0; m < 3; m++){
-						const num3 = buffer2[m]
-						const buffer3 = buffer2.slice(m+1, 3)
-						buffer3.slice(m,1)
-						if((getCardNumber(num1) + getCardNumber(num2) + getCardNumber(num3)) % 10 == 0){
-							// const rest = buffer.filter((a)=>{
-							//     return a !== num1 && a !== num2 && a != num3
-							// })
-							let helper = [] as number[]
-							helper = helper.concat([num1, num2, num3])
-							for(let i = 0; i < 5; i++){
-								for(let k = 0; k < 3; k++){
-									if(buffer[i] == helper[k]){
-										delete helper[k]
-										delete buffer[i]
-									}
-								}
-							}
-							const rest = buffer.filter((v)=>{
-								if(v != undefined) return true;
-							})
-							if((getCardNumber(rest[0]) + getCardNumber(rest[1])) % 10 == 0) 
-								 return [JUDGETYPE.Double, cardPower, rest[0], rest[1]]
-							return [((getCardNumber(rest[0]) + getCardNumber(rest[1])) % 10) as JUDGETYPE, cardPower, rest[0], rest[1]];
-						}
-					}
-				}
-				
-			}
-			/*let cattle = false;
-			let a = 0, b = 0, c = 0, d = 0, e = 0;
-			for (a = 0; a < MAX_CARD; a++) {
-				for (b = 0; b < MAX_CARD; b++) {
-					for (let c = 0; c < MAX_CARD; c++) {
-						if (a!==b && b!==c && (sortedArray[a] + sortedArray[b] + sortedArray[c]) % 10===0) {
-							cattle = true;
+			let rests = [] as Array<{n: number, org: number}>;
+			for (let i of sortedArray) {
+				let a = i;
+				for (let i of sortedArray) {
+					if (i.org===a.org) continue;
+					let b = i;
+					for (let i of sortedArray) {
+						if (i.org===a.org || i.org===b.org) continue;
+						let c = i;
+						if ((a.n + b.n + c.n) % 10===0) {
+							rests = sortedArray.filter(i=>i.org!==a.org && i.org!==b.org && i.org!==c.org);
 							break;
 						}
 					}
-					if (cattle) break;
+					if (rests.length) break;
 				}
-				if (cattle) break;
+				if (rests.length) break;
 			}
-			if (cattle) {
-				for (let k = 0; k < MAX_CARD; k++) {
-					if (k!==a && k!==b && k!==c) {
-						if (d===0) {
-							d = k;
-						} else if (k!==d) {
-							e = k;
-						}
-					}
+			if (rests.length!==0) {
+				let r = 0;
+				switch ((rests[0].n + rests[1].n) % 10) {
+				case 0: r = JUDGETYPE.Double; break;
+				case 1: r = JUDGETYPE.Cattle_1; break;
+				case 2: r = JUDGETYPE.Cattle_2; break;
+				case 3: r = JUDGETYPE.Cattle_3; break;
+				case 4: r = JUDGETYPE.Cattle_4; break;
+				case 5: r = JUDGETYPE.Cattle_5; break;
+				case 6: r = JUDGETYPE.Cattle_6; break;
+				case 7: r = JUDGETYPE.Cattle_7; break;
+				case 8: r = JUDGETYPE.Cattle_8; break;
+				case 9: r = JUDGETYPE.Cattle_9; break;
 				}
-				if (d + e===10) return [JUDGETYPE.Double, cardPower];
-				return [((d + e) % 10) as JUDGETYPE, cardPower];
-			}*/
+				return [r as JUDGETYPE, cardPower, rests[0].org, rests[1].org];
+			}
 		}
 		return [JUDGETYPE.None, cardPower];
 	}
+
+	// getJudge(cards:number[]){
+	// 	//cards = [0,9,3,30,18]
+	// 	if(cards.find(e=>e == -1))
+	// 		return [JUDGETYPE.undefined, -1]
+	// 	const tmp = {} as {[n: number]: number}
+	// 	let sortedArray : number[] = []
+	// 	for(let i = 0; i < 5; i++){
+	// 		sortedArray[i] = (cards[i]+1)%9
+	// 		if(sortedArray[i] == 0) sortedArray[i] = 9
+	// 	}
+	// 	sortedArray = sortedArray.sort((a, b)=>(a - b))
+		
+	// 	let dups = 0, cardPower = 0;
+	// 	{
+	// 		for (let i of sortedArray) {
+	// 			cardPower += Math.floor((i - 1) / 10)
+	// 			if (tmp[i]===undefined) {
+	// 				tmp[i] = 1;
+	// 			} else {
+	// 				tmp[i]++;
+	// 			}
+	// 		}
+	// 		for (let k in tmp) {
+	// 			if (tmp[k] > dups) dups = tmp[k];
+	// 		}
+	// 	}
+	// 	{ // 炸弹牛
+	// 		if (dups===4) return [JUDGETYPE.Bomb, cardPower];
+	// 	}
+	// 	{ // 四十 or 十小
+	// 		let sum = 0;
+	// 		for (let i of sortedArray) {
+	// 			sum += i;
+	// 		}
+	// 		if (sum >= 40) return [JUDGETYPE.Forty, cardPower];
+	// 		if (sum <= 10) return [JUDGETYPE.Ten, cardPower];
+	// 	}
+	// 	{ // 葫芦牛, 金牌牛牛, 金牌牛
+	// 		if (dups===3) {
+	// 			const cs = [] as number[];
+	// 			const keys = Object.keys(tmp)
+	// 			keys.forEach(key => {
+	// 				if(tmp[Number(key)] !== 3){
+	// 					cs.push(Number(key))
+	// 				}
+	// 			});
+				
+				
+	// 			if (cs.length===1) {
+	// 				return [JUDGETYPE.Gourd, cardPower];
+	// 			} else {
+	// 				switch ((cs[0] + cs[1]) % 10) {
+	// 				case 0: return [JUDGETYPE.GoldDouble, cardPower];
+	// 				case 1: return [JUDGETYPE.Gold_1, cardPower];
+	// 				case 2: return [JUDGETYPE.Gold_2, cardPower];
+	// 				case 3: return [JUDGETYPE.Gold_3, cardPower];
+	// 				case 4: return [JUDGETYPE.Gold_4, cardPower];
+	// 				case 5: return [JUDGETYPE.Gold_5, cardPower];
+	// 				case 6: return [JUDGETYPE.Gold_6, cardPower];
+	// 				case 7: return [JUDGETYPE.Gold_7, cardPower];
+	// 				case 8: return [JUDGETYPE.Gold_8, cardPower];
+	// 				case 9: return [JUDGETYPE.Gold_9, cardPower];
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// 	{ // 顺子
+	// 		let isSequence = true;
+	// 		let prev = 0;
+	// 		for (let i of sortedArray) {
+	// 			if (prev===0) {
+	// 				prev = i;
+	// 			} else if (prev + 1!==i) {
+	// 				isSequence = false;
+	// 				break;
+	// 			}
+	// 		}
+	// 		if (isSequence) return [JUDGETYPE.Sequence, cardPower];
+	// 	}
+	// 	{ // find cattle
+	// 		const getCardNumber = (card : number) => {
+	// 			card = (card+1)%9
+	// 			if(card == 0) card = 9
+	// 			return card
+	// 		}
+	// 		const buffer  = Object.assign([], cards);//cards
+	// 		for(let i = 0; i < 5; i++){
+	// 			const num1 = buffer[i]
+	// 			const buffer1 = buffer.slice(i+1, 5)
+	// 			for(let k = 0; k < 4; k ++){
+	// 				const num2 = buffer1[k]
+	// 				const buffer2 = buffer1.slice(k+1, 4)
+	// 				for(let m = 0; m < 3; m++){
+	// 					const num3 = buffer2[m]
+	// 					const buffer3 = buffer2.slice(m+1, 3)
+	// 					buffer3.slice(m,1)
+	// 					if((getCardNumber(num1) + getCardNumber(num2) + getCardNumber(num3)) % 10 == 0){
+	// 						// const rest = buffer.filter((a)=>{
+	// 						//     return a !== num1 && a !== num2 && a != num3
+	// 						// })
+	// 						let helper = [] as number[]
+	// 						helper = helper.concat([num1, num2, num3])
+	// 						for(let i = 0; i < 5; i++){
+	// 							for(let k = 0; k < 3; k++){
+	// 								if(buffer[i] == helper[k]){
+	// 									delete helper[k]
+	// 									delete buffer[i]
+	// 								}
+	// 							}
+	// 						}
+	// 						const rest = buffer.filter((v)=>{
+	// 							if(v != undefined) return true;
+	// 						})
+	// 						if((getCardNumber(rest[0]) + getCardNumber(rest[1])) % 10 == 0) 
+	// 							 return [JUDGETYPE.Double, cardPower, rest[0], rest[1]]
+	// 						return [((getCardNumber(rest[0]) + getCardNumber(rest[1])) % 10) as JUDGETYPE, cardPower, rest[0], rest[1]];
+	// 					}
+	// 				}
+	// 			}
+				
+	// 		}
+	// 		/*let cattle = false;
+	// 		let a = 0, b = 0, c = 0, d = 0, e = 0;
+	// 		for (a = 0; a < MAX_CARD; a++) {
+	// 			for (b = 0; b < MAX_CARD; b++) {
+	// 				for (let c = 0; c < MAX_CARD; c++) {
+	// 					if (a!==b && b!==c && (sortedArray[a] + sortedArray[b] + sortedArray[c]) % 10===0) {
+	// 						cattle = true;
+	// 						break;
+	// 					}
+	// 				}
+	// 				if (cattle) break;
+	// 			}
+	// 			if (cattle) break;
+	// 		}
+	// 		if (cattle) {
+	// 			for (let k = 0; k < MAX_CARD; k++) {
+	// 				if (k!==a && k!==b && k!==c) {
+	// 					if (d===0) {
+	// 						d = k;
+	// 					} else if (k!==d) {
+	// 						e = k;
+	// 					}
+	// 				}
+	// 			}
+	// 			if (d + e===10) return [JUDGETYPE.Double, cardPower];
+	// 			return [((d + e) % 10) as JUDGETYPE, cardPower];
+	// 		}*/
+	// 	}
+	// 	return [JUDGETYPE.None, cardPower];
+	// }
 
 	getResult(){
 		const banker = this.findByUid(this.room.bankerId);
