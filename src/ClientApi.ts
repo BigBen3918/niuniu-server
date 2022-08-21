@@ -403,8 +403,9 @@ export type CommandType =
 	"current-round-data" |
 	"pool-data" |
 	"update-user-info" |
-	"ready-round"
-"none";
+	"ready-round"		|
+	"get-spectators"	|
+	"none";
 
 /*
 if specified roomId, notify for only specific room, else, notify all.
