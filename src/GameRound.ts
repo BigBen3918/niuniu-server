@@ -608,22 +608,25 @@ export class GameRound{
 		for(let i = 0; i < 6; i ++){
 			if(players[i] === undefined) continue
 			if(players[i].id === this.room.bankerId) continue
+
+			
+
 			if(banker.judge > players[i].judge || (banker.judge === players[i].judge && banker.cardPower > players[i].cardPower)){
-				const multiple = banker.multiplier * this.getCardMultipler(banker.judge)
-				const earnValue = antes * multiple
-				banker.earns.push([players[i].id, earnValue, multiple]);
-				players[i].balance -= earnValue;
-				banker.balance += earnValue;
-				players[i].balanceChange = -earnValue;
-				banker.balanceChange = earnValue;
+				const multiple = banker.multiplier * players[i].multiplier * this.getCardMultipler(banker.judge)
+				const value = antes * multiple
+				banker.earns.push([players[i].id, value, multiple]);
+				players[i].balance -= value;
+				banker.balance += value;
+				players[i].balanceChange = -value;
+				banker.balanceChange = value;
 			}else{
-				const multiple = players[i].multiplier * this.getCardMultipler(players[i].judge)
-				const lossValue = antes * multiple
-				banker.loss.push([players[i].id, lossValue, multiple])
-				players[i].balance += lossValue;
-				banker.balance -= lossValue;
-				players[i].balanceChange = lossValue;
-				banker.balanceChange = -lossValue;
+				const multiple = banker.multiplier * players[i].multiplier * this.getCardMultipler(players[i].judge)
+				const value = antes * multiple
+				banker.loss.push([players[i].id, value, multiple])
+				players[i].balance += value;
+				banker.balance -= value;
+				players[i].balanceChange = value;
+				banker.balanceChange = -value;
 			}
 			
 		}
